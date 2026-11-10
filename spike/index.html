@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ritornello - test fichiers</title>
+<style>
+  body { font: 18px system-ui, sans-serif; margin: 16px; max-width: 40em; }
+  button { font-size: 18px; padding: 12px 16px; margin: 6px 0; width: 100%; }
+  #log { white-space: pre-wrap; background: #eee; padding: 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>Test : rouvrir un fichier sans le rechoisir</h1>
+<ol>
+  <li>Touche « 1. Choisir », prends un morceau dans Proton Drive.</li>
+  <li>Ferme complètement l'onglet, puis rouvre cette page.</li>
+  <li>Touche « 2. Rouvrir le dernier ». Si le son repart, c'est gagné.</li>
+</ol>
+<button id="pick">1. Choisir un morceau</button>
+<button id="reopen">2. Rouvrir le dernier</button>
+<audio id="player" controls style="width:100%"></audio>
+<h2>Journal</h2>
+<div id="log"></div>
+
+<script>
+const logBox = document.getElementById("log");
+const player = document.getElementById("player");
+
+function log(message) {
+  logBox.textContent += message + "\n";
+}
+
+// Petit stockage IndexedDB : une seule clé, "last", qui contient le handle du fichier.
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("ritornello-test", 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("handles");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveHandle(handle) {
+  const db = await openDb();
+  const tx = db.transaction("handles", "readwrite");
+  tx.objectStore("handles").put(handle, "last");
+  return new Promise((resolve) => (tx.oncomplete = resolve));
+}
+
+async function loadHandle() {
+  const db = await openDb();
+  const request = db.transaction("handles").objectStore("handles").get("last");
+  return new Promise((resolve) => (request.onsuccess = () => resolve(request.result)));
+}
+
+async function play(file) {
+  log("Lecture de : " + file.name + " (" + Math.round(file.size / 1024) + " Ko)");
+  player.src = URL.createObjectURL(file);
+  await player.play();
+}
+
+document.getElementById("pick").onclick = async () => {
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: "Audio", accept: { "audio/*": [".mp3", ".m4a", ".wav", ".ogg", ".flac"] } }],
+    });
+    await saveHandle(handle);
+    log("Handle enregistré.");
+    await play(await handle.getFile());
+  } catch (error) {
+    log("Erreur choix : " + error.name + " - " + error.message);
+  }
+};
+
+document.getElementById("reopen").onclick = async () => {
+  try {
+    const handle = await loadHandle();
+    if (!handle) return log("Aucun fichier enregistré : fais d'abord l'étape 1.");
+    log("Handle retrouvé : " + handle.name);
+    log("Permission avant demande : " + (await handle.queryPermission({ mode: "read" })));
+    log("Permission après demande : " + (await handle.requestPermission({ mode: "read" })));
+    await play(await handle.getFile());
+  } catch (error) {
+    log("Erreur réouverture : " + error.name + " - " + error.message);
+  }
+};
+
+log("Navigateur : " + navigator.userAgent);
+log("showOpenFilePicker disponible : " + ("showOpenFilePicker" in window));
+</script>
+</body>
+</html>
