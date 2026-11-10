@@ -55,16 +55,15 @@ async function loadHandle() {
 }
 
 async function play(file) {
-  log("Lecture de : " + file.name + " (" + Math.round(file.size / 1024) + " Ko)");
+  log("Lecture de : " + file.name + " (" + Math.round(file.size / 1024) + " Ko, type annoncé : " + (file.type || "aucun") + ")");
   player.src = URL.createObjectURL(file);
   await player.play();
 }
 
 document.getElementById("pick").onclick = async () => {
   try {
-    const [handle] = await window.showOpenFilePicker({
-      types: [{ description: "Audio", accept: { "audio/*": [".mp3", ".m4a", ".wav", ".ogg", ".flac"] } }],
-    });
+    // Pas de filtre de type : avec "audio/*", Proton Drive grise tous les fichiers.
+    const [handle] = await window.showOpenFilePicker();
     await saveHandle(handle);
     log("Handle enregistré.");
     await play(await handle.getFile());
