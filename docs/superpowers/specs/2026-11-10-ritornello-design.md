@@ -132,10 +132,18 @@ succès (décision de Stéphane).
 
 ## Navigateurs
 
-Stéphane utilise Brave. Brave désactive par défaut l'API File System Access ;
-il faut l'activer une fois par appareil (`brave://flags/#file-system-access-api`),
-à vérifier avec `spike/index.html`. Safari et Firefox n'ont pas
-`showOpenFilePicker`.
+- Android : Stéphane navigue avec DuckDuckGo. Le test `spike/index.html` y
+  fonctionne (`.mp3` depuis Proton Drive, réouverture sans re-choisir). Mais
+  le bouton « tout effacer » de DuckDuckGo efface les références aux
+  fichiers, et DuckDuckGo ne crée qu'un raccourci, pas une app plein écran.
+  Décision de Stéphane : Ritornello est installé une fois depuis **Chrome**
+  (app plein écran, à l'abri du bouton feu), la navigation reste sur
+  DuckDuckGo. Le test `spike/index.html` est à refaire dans Chrome.
+- Laptops (Linux, macOS) : Brave. Brave désactive par défaut l'API File
+  System Access ; il faut l'activer une fois par laptop
+  (`brave://flags/#file-system-access-api`), à vérifier avec
+  `spike/index.html`.
+- Safari et Firefox n'ont pas `showOpenFilePicker`.
 
 ## Choix validés par Stéphane
 
