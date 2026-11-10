@@ -21,15 +21,21 @@
 <button id="reopen">2. Rouvrir le dernier</button>
 <audio id="player" controls style="width:100%"></audio>
 <h2>Journal</h2>
+<button id="clear">Effacer le journal</button>
 <div id="log"></div>
 
 <script>
 const logBox = document.getElementById("log");
 const player = document.getElementById("player");
 
+// Le journal est aussi gardé dans localStorage, pour survivre à un rechargement de la page.
 function log(message) {
-  logBox.textContent += message + "\n";
+  const time = new Date().toLocaleTimeString();
+  logBox.textContent += time + "  " + message + "\n";
+  try { localStorage.setItem("log", logBox.textContent); } catch (error) {}
 }
+
+try { logBox.textContent = localStorage.getItem("log") || ""; } catch (error) {}
 
 // Petit stockage IndexedDB : une seule clé, "last", qui contient le handle du fichier.
 function openDb() {
@@ -62,11 +68,15 @@ async function play(file) {
 
 document.getElementById("pick").onclick = async () => {
   try {
+    log("Ouverture du sélecteur...");
     // Pas de filtre de type : avec "audio/*", Proton Drive grise tous les fichiers.
     const [handle] = await window.showOpenFilePicker();
+    log("Fichier choisi : " + handle.name);
     await saveHandle(handle);
     log("Handle enregistré.");
-    await play(await handle.getFile());
+    const file = await handle.getFile();
+    log("Fichier lu.");
+    await play(file);
   } catch (error) {
     log("Erreur choix : " + error.name + " - " + error.message);
   }
@@ -85,6 +95,12 @@ document.getElementById("reopen").onclick = async () => {
   }
 };
 
+document.getElementById("clear").onclick = () => {
+  logBox.textContent = "";
+  try { localStorage.removeItem("log"); } catch (error) {}
+};
+
+log("--- Page chargée ---");
 log("Navigateur : " + navigator.userAgent);
 log("showOpenFilePicker disponible : " + ("showOpenFilePicker" in window));
 </script>
