@@ -138,7 +138,10 @@ succès (décision de Stéphane).
   fichiers, et DuckDuckGo ne crée qu'un raccourci, pas une app plein écran.
   Décision de Stéphane : Ritornello est installé une fois depuis **Chrome**
   (app plein écran, à l'abri du bouton feu), la navigation reste sur
-  DuckDuckGo. Le test `spike/index.html` est à refaire dans Chrome.
+  DuckDuckGo. Test `spike/index.html` réussi dans Chrome Android le
+  2026-11-10 ; Chrome demande une autorisation à la réouverture (un toucher
+  par session). À vérifier une fois l'app installée : l'option « Autoriser à
+  chaque visite » (permissions persistantes) supprime-t-elle ce toucher ?
 - Laptops (Linux, macOS) : Brave. Brave désactive par défaut l'API File
   System Access ; il faut l'activer une fois par laptop
   (`brave://flags/#file-system-access-api`), à vérifier avec
