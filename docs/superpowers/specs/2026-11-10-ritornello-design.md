@@ -144,8 +144,9 @@ succès (décision de Stéphane).
   chaque visite » (permissions persistantes) supprime-t-elle ce toucher ?
 - Laptops (Linux, macOS) : Brave. Brave désactive par défaut l'API File
   System Access ; il faut l'activer une fois par laptop
-  (`brave://flags/#file-system-access-api`), à vérifier avec
-  `spike/index.html`.
+  (`brave://flags/#file-system-access-api`, puis « Relaunch »). Test
+  `spike/index.html` réussi sur le laptop Linux le 2026-11-13. macOS
+  considéré comme OK sans test (même moteur Chromium).
 - Safari et Firefox n'ont pas `showOpenFilePicker`.
 
 ## Choix validés par Stéphane
@@ -155,11 +156,15 @@ succès (décision de Stéphane).
   le morceau reste dans la liste avec un bouton « Retrouver le fichier » qui
   rouvre le sélecteur et garde les marqueurs.
 - Thème sombre par défaut, avec un style propre à Ritornello.
+- Transposition et vitesse : SoundTouchJS, en JavaScript pur, sans étape
+  de build. Si le son gêne au violon, on passera à Rubber Band (WASM), qui
+  a une meilleure qualité mais est plus lourd. Le code audio reste isolé
+  dans un seul fichier pour que ce changement reste simple.
+- Pas de test séparé pour le `.aac` : le lecteur décode déjà avec
+  `decodeAudioData`, donc la première écoute d'un `.aac` sur Android sert
+  de test.
 
 ## Laissé à la personne qui code
 
-- La bibliothèque de transposition/vitesse dans le navigateur (SoundTouchJS,
-  Rubber Band en WASM, ou autre), choisie sur la qualité du son au violon
-  et la simplicité.
 - Le découpage du code, tant qu'il reste petit et lisible.
 - Les raccourcis clavier sur ordinateur.
