@@ -99,8 +99,8 @@ De haut en bas :
    un halo. Toucher l'onde déplace la lecture, comme aujourd'hui.
 4. **Outils** : « ＋ Marqueur » pose un marqueur à l'instant joué.
 5. **Liste des marqueurs** : une ligne de 48 px par marqueur, avec le numéro
-   dans un rond, le temps (avec les centièmes), le nom et un bouton ⋯.
-   Le ⋯ ouvre sous la ligne un panneau : nom modifiable, « −0,1 s »,
+   dans un rond, le temps (avec les centièmes) et un bouton ⋯.
+   Le ⋯ ouvre sous la ligne un panneau : « −0,1 s »,
    « Placer à mm:ss » (l'instant joué), « +0,1 s » et « Supprimer ».
    Révisé après essai sur le téléphone : le ✎ n'était pas trouvé, et on ne
    pouvait pas déplacer un marqueur. Cette liste défile si elle est longue.
@@ -116,15 +116,18 @@ pas d'emoji ni de caractères ⏪ ⏩, que Stéphane trouve laids.
 
 ## Les gestes
 
-**Choisir la boucle en touchant les marqueurs.** Toucher la ligne du
-marqueur n boucle de n jusqu'au marqueur suivant. Toucher ensuite une autre
-ligne étend la boucle jusqu'à elle, ce qui revient à « boucle de 1 à 3 »
-dans Transpose. Toucher une ligne qui est déjà dans une boucle de plusieurs
-sections ramène la boucle à cette seule section. Toucher une ligne active la
-boucle et place la lecture au début de la boucle. Une bande colorée à gauche
-montre les lignes qui sont dans la boucle. La même logique s'applique quand
-on touche une pastille de l'onde. Décision de Claude : cette règle est
-écrite comme une fonction pure dans `track.js` et testée.
+**Choisir la boucle en touchant les marqueurs.** La boucle va entre les
+deux derniers marqueurs touchés, dans l'ordre du temps : toucher 1 puis 2
+boucle de 1 à 2, toucher ensuite 4 boucle de 2 à 4. Un marqueur touché seul
+(premier toucher, ou après avoir coupé la boucle) boucle jusqu'au marqueur
+suivant, ou jusqu'à la fin du morceau pour le dernier. Toucher un marqueur
+active la boucle et place la lecture à son début. Les lignes entre les deux
+marqueurs, bornes comprises, sont surlignées. Les pastilles de l'onde font
+pareil. Révisé après essai sur le téléphone : la première règle (par
+sections) bouclait de 1 à 3 quand on touchait 1 puis 2.
+
+**Pas de nom sur les marqueurs.** Un marqueur n'a que son numéro et son
+temps : un nom à côté du numéro prêtait à confusion (demande de Stéphane).
 
 **Activer la boucle replace la lecture dedans.** Si la lecture est avant
 ou après la boucle quand on l'active, elle saute au début de la boucle.

@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds,
+import { addMarker, removeMarker, markerNumber, loopBounds,
   positionAfterTick, stepSpeed, stepSemitones, formatTime, tapLoop, moveMarker } from '../track.js';
 
 test('addMarker keeps markers sorted by time with stable ids', () => {
   let m = addMarker([], 30);
   m = addMarker(m, 10);
   assert.deepEqual(m, [
-    { id: 2, time: 10, name: 'marker 2' },
-    { id: 1, time: 30, name: 'marker 1' },
+    { id: 2, time: 10 },
+    { id: 1, time: 30 },
   ]);
   assert.equal(markerNumber(m, 1), 2);
 });
@@ -19,10 +19,9 @@ test('addMarker does not modify its argument', () => {
   assert.equal(m.length, 1);
 });
 
-test('removeMarker and renameMarker', () => {
+test('removeMarker', () => {
   const m = addMarker(addMarker([], 1), 2);
   assert.deepEqual(removeMarker(m, 1).map(x => x.id), [2]);
-  assert.equal(renameMarker(m, 2, 'refrain')[1].name, 'refrain');
 });
 
 test('loopBounds orders the two markers', () => {
@@ -72,28 +71,26 @@ test('formatTime gives mm:ss', () => {
 // Cinq marqueurs, ids 1 à 5 dans l'ordre du temps.
 const FIVE = [10, 20, 30, 40, 50].map((time, i) => ({ id: i + 1, time, name: `m${i + 1}` }));
 
-test('tapLoop: first tap loops from the marker to the next one', () => {
-  assert.deepEqual(tapLoop(FIVE, null, false, 2), { fromId: 2, toId: 3 });
+test('tapLoop: a marker touched alone loops to the next one', () => {
+  assert.deepEqual(tapLoop(FIVE, null, 2), { fromId: 2, toId: 3 });
 });
 
-test('tapLoop: tapping another marker extends the loop', () => {
-  assert.deepEqual(tapLoop(FIVE, { fromId: 2, toId: 3 }, true, 4), { fromId: 2, toId: 5 });
+test('tapLoop: two markers touched one after the other loop between them', () => {
+  assert.deepEqual(tapLoop(FIVE, 1, 2), { fromId: 1, toId: 2 });
+  assert.deepEqual(tapLoop(FIVE, 2, 4), { fromId: 2, toId: 4 });
 });
 
-test('tapLoop: tapping inside a wide loop goes back to one section', () => {
-  assert.deepEqual(tapLoop(FIVE, { fromId: 2, toId: 5 }, true, 3), { fromId: 3, toId: 4 });
+test('tapLoop: the order of the two touches does not matter', () => {
+  assert.deepEqual(tapLoop(FIVE, 4, 2), { fromId: 2, toId: 4 });
 });
 
-test('tapLoop: the last marker loops to the end of the track', () => {
-  assert.deepEqual(tapLoop(FIVE, null, false, 5), { fromId: 5, toId: null });
+test('tapLoop: the last marker touched alone loops to the end of the track', () => {
+  assert.deepEqual(tapLoop(FIVE, null, 5), { fromId: 5, toId: null });
 });
 
-test('tapLoop: when the loop is off, a tap starts a new single section', () => {
-  assert.deepEqual(tapLoop(FIVE, { fromId: 1, toId: 3 }, false, 4), { fromId: 4, toId: 5 });
-});
-
-test('tapLoop: an old reversed loop is read in time order', () => {
-  assert.deepEqual(tapLoop(FIVE, { fromId: 4, toId: 2 }, true, 5), { fromId: 2, toId: null });
+test('tapLoop: touching the same marker twice, or a deleted previous one, starts again', () => {
+  assert.deepEqual(tapLoop(FIVE, 3, 3), { fromId: 3, toId: 4 });
+  assert.deepEqual(tapLoop(FIVE, 99, 3), { fromId: 3, toId: 4 });
 });
 
 test('loopBounds: toId null means the end of the track', () => {

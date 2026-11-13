@@ -2,7 +2,7 @@
 // boucle) et waveform.js (barre de temps). Les listes sont dans lists.js.
 
 import * as player from './player.js';
-import { addMarker, removeMarker, renameMarker, moveMarker, markerNumber, loopBounds, tapLoop,
+import { addMarker, removeMarker, moveMarker, markerNumber, loopBounds, tapLoop,
   positionAfterTick, stepSpeed, stepSemitones, formatTime,
   MIN_SPEED, MAX_SPEED, MAX_SEMITONES } from './track.js';
 import { computePeaks, drawTimeline, timeAtX, markerAtPoint } from './waveform.js';
@@ -33,6 +33,7 @@ let refreshTimer = null;
 let wakeLock = null;
 let openMarkerId = null;  // marqueur dont le panneau ⋯ est ouvert
 const NUDGE_SECONDS = 0.1;
+let lastTappedId = null;  // dernier marqueur touché : la boucle va de lui au suivant touché
 let passCount = 1;        // passages dans la boucle depuis son dernier changement
 let lastTickTime = 0;
 
@@ -115,6 +116,7 @@ async function openFile(file, track) {
   applyLoop();
   $('track-name').textContent = file.name;
   openMarkerId = null;
+  lastTappedId = null;
   passCount = 1;
   hideMessage();
   showPlayerScreen();
@@ -213,15 +215,11 @@ function onDeleteMarker(id) {
   renderTime();
 }
 
-function onRenameMarker(id, name) {
-  markers = renameMarker(markers, id, name);
-  rememberSettings();
-  renderMarkers();
-}
 
 // Toucher un marqueur (ligne ou pastille) : boucle sa section, ou l'étend.
 function onMarkerTap(id) {
-  loop = tapLoop(markers, loop, loopActive, id);
+  loop = tapLoop(markers, lastTappedId, id);
+  lastTappedId = id;
   loopActive = currentBounds() !== null;
   passCount = 1;
   applyLoop();
@@ -249,6 +247,7 @@ function onMoveMarker(id, time) {
 // Activer la boucle replace la lecture dedans si elle était ailleurs.
 function toggleLoop() {
   loopActive = !loopActive && currentBounds() !== null;
+  lastTappedId = null; // le prochain marqueur touché repart de zéro
   passCount = 1;
   applyLoop();
   if (loopActive && positionAfterTick(player.getCurrentTime(), currentBounds()) !== null) {
@@ -264,7 +263,7 @@ function toggleLoop() {
 function updateLoopAfterMarkerChange() {
   if (currentBounds() === null) {
     loopActive = false;
-    loop = markers.length ? tapLoop(markers, null, false, markers[0].id) : null;
+    loop = markers.length ? tapLoop(markers, null, markers[0].id) : null;
   }
 }
 
@@ -337,14 +336,14 @@ function renderMarkers() {
 
 function markerItem(marker, bounds) {
   const item = document.createElement('li');
-  item.classList.toggle('in-loop', bounds !== null && marker.time >= bounds.start && marker.time < bounds.end);
+  item.classList.toggle('in-loop', bounds !== null && marker.time >= bounds.start && marker.time <= bounds.end);
 
   const number = element('span', 'number', markerNumber(markers, marker.id));
   const time = element('span', 'time', formatTime(marker.time));
   time.append(element('small', '', hundredths(marker.time)));
 
   const row = element('button', 'marker-row');
-  row.append(number, time, element('span', 'name', marker.name));
+  row.append(number, time);
   row.addEventListener('click', () => onMarkerTap(marker.id));
 
   const more = element('button', 'more', '⋯');
@@ -357,14 +356,9 @@ function markerItem(marker, bounds) {
   return item;
 }
 
-// Panneau ⋯ : nom, déplacement, suppression.
+// Panneau ⋯ : déplacement, suppression.
 function markerPanel(marker) {
   const panel = element('div', 'marker-panel');
-
-  const name = document.createElement('input');
-  name.value = marker.name;
-  name.setAttribute('aria-label', 'Nom du marqueur');
-  name.addEventListener('change', () => onRenameMarker(marker.id, name.value));
 
   const earlier = element('button', 'nudge', '−0,1 s');
   earlier.addEventListener('click', () => onMoveMarker(marker.id, marker.time - NUDGE_SECONDS));
@@ -378,7 +372,7 @@ function markerPanel(marker) {
 
   const moves = element('div', 'marker-moves');
   moves.append(earlier, here, later);
-  panel.append(name, moves, remove);
+  panel.append(moves, remove);
   return panel;
 }
 

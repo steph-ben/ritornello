@@ -294,15 +294,12 @@ input {
   font-weight: 700;
 }
 .markers .time { font-variant-numeric: tabular-nums; }
-.markers .time small, .markers .name { color: var(--text-dim); }
-.markers li.in-loop .name { color: var(--text); }
-.markers .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.markers .time small { color: var(--text-dim); }
 .markers .more { width: 48px; color: var(--text-dim); font-size: 20px; }
 .markers .more[aria-expanded="true"] { color: var(--accent); }
 
-/* Panneau ⋯ d'un marqueur : nom, déplacement, suppression */
+/* Panneau ⋯ d'un marqueur : déplacement, suppression */
 .marker-panel { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; padding: 4px 12px 12px 48px; }
-.marker-panel input { width: 100%; min-height: 44px; }
 .marker-moves { display: flex; gap: 6px; }
 .marker-moves button { border-radius: 12px; background: var(--surface-strong); font-variant-numeric: tabular-nums; }
 .marker-moves .nudge { flex: none; padding: 0 10px; }

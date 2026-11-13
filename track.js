@@ -6,19 +6,15 @@ export const MAX_SPEED = 200;
 export const SPEED_STEP = 5;
 export const MAX_SEMITONES = 12;
 
-// Un marqueur : { id, time, name }. La liste est toujours triée par temps.
+// Un marqueur : { id, time }. La liste est toujours triée par temps.
 export function addMarker(markers, time) {
   const id = markers.reduce((max, m) => Math.max(max, m.id), 0) + 1;
-  const marker = { id, time, name: `marker ${id}` };
+  const marker = { id, time };
   return [...markers, marker].sort((a, b) => a.time - b.time);
 }
 
 export function removeMarker(markers, id) {
   return markers.filter(m => m.id !== id);
-}
-
-export function renameMarker(markers, id, name) {
-  return markers.map(m => (m.id === id ? { ...m, name } : m));
 }
 
 // Déplace un marqueur (jamais avant 0) ; la liste reste triée par temps.
@@ -45,32 +41,18 @@ export function loopBounds(markers, loop, duration = 0) {
   return { start: Math.min(from.time, toTime), end: Math.max(from.time, toTime) };
 }
 
-// Nouvelle boucle quand on touche un marqueur. Une section va d'un
-// marqueur au suivant (ou à la fin du morceau pour le dernier).
-// - boucle coupée, ou on retouche la même section seule : cette section ;
-// - on touche une section dans une boucle de plusieurs : cette section ;
-// - sinon : la boucle s'étend jusqu'à la section touchée.
-export function tapLoop(markers, loop, loopActive, tappedId) {
+// Nouvelle boucle quand on touche un marqueur : elle va entre les deux
+// derniers marqueurs touchés (`previousId`, puis `tappedId`), dans l'ordre
+// du temps. Un marqueur touché seul boucle jusqu'au suivant (ou jusqu'à la
+// fin du morceau pour le dernier).
+export function tapLoop(markers, previousId, tappedId) {
   const tapped = markers.findIndex(m => m.id === tappedId);
-  const current = loopActive ? loopSections(markers, loop) : null;
-  let first = tapped;
-  let last = tapped;
-  const insideWideLoop = current && current.first < current.last
-    && tapped >= current.first && tapped <= current.last;
-  if (current && !insideWideLoop) {
-    first = Math.min(current.first, tapped);
-    last = Math.max(current.last, tapped);
+  const previous = markers.findIndex(m => m.id === previousId);
+  if (previous < 0 || previous === tapped) {
+    return { fromId: tappedId, toId: markers[tapped + 1]?.id ?? null };
   }
-  return { fromId: markers[first].id, toId: markers[last + 1]?.id ?? null };
-}
-
-// Première et dernière section (indices) couvertes par la boucle, ou null.
-function loopSections(markers, loop) {
-  if (!loop) return null;
-  const from = markers.findIndex(m => m.id === loop.fromId);
-  const to = loop.toId === null ? markers.length : markers.findIndex(m => m.id === loop.toId);
-  if (from < 0 || to < 0 || from === to) return null;
-  return { first: Math.min(from, to), last: Math.max(from, to) - 1 };
+  const [first, last] = [previous, tapped].sort((a, b) => a - b);
+  return { fromId: markers[first].id, toId: markers[last].id };
 }
 
 // Où sauter quand la lecture est à `time` : au début de la boucle si on a
