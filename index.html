@@ -9,14 +9,53 @@
 </head>
 <body>
   <main>
-    <button id="open-button">Ouvrir un morceau</button>
-    <p id="track-name"></p>
+    <header class="track">
+      <button id="open-button">Ouvrir un morceau</button>
+      <span id="track-name" class="track-name"></span>
+    </header>
     <p id="message" class="message" hidden></p>
 
-    <div class="transport">
-      <button id="play-button" disabled>▶</button>
-      <span id="clock">00:00 / 00:00</span>
+    <section class="settings">
+      <div class="stepper">
+        <span class="label">Transposition</span>
+        <button id="pitch-down" aria-label="Baisser d'un demi-ton">−</button>
+        <span id="pitch-value" class="value">0</span>
+        <button id="pitch-up" aria-label="Monter d'un demi-ton">+</button>
+      </div>
+      <div class="stepper">
+        <span class="label">Vitesse</span>
+        <button id="speed-down" aria-label="Ralentir">−</button>
+        <span id="speed-value" class="value">100 %</span>
+        <button id="speed-up" aria-label="Accélérer">+</button>
+      </div>
+    </section>
+
+    <div class="counter">
+      <span id="counter-time">00:00</span>
+      <span id="counter-loop" class="counter-loop" hidden></span>
     </div>
+
+    <canvas id="timeline" class="timeline"></canvas>
+
+    <section class="markers">
+      <button id="add-marker" disabled>+ Marker</button>
+      <ul id="marker-list" class="marker-list"></ul>
+    </section>
+
+    <section class="loop">
+      <label>Boucle de <select id="loop-from"></select></label>
+      <label>à <select id="loop-to"></select></label>
+      <button id="loop-button" class="loop-button" aria-pressed="false" disabled>⟲ Boucle</button>
+    </section>
+
+    <footer class="transport">
+      <button id="go-start" aria-label="Retour au début" disabled>⏮</button>
+      <button id="go-back" aria-label="Reculer de 5 secondes" disabled>−5</button>
+      <button id="play-button" class="play-button" aria-label="Lecture" disabled>▶</button>
+      <button id="go-forward" aria-label="Avancer de 5 secondes" disabled>+5</button>
+      <span id="loop-badge" class="loop-badge" hidden></span>
+      <span id="clock" class="clock">00:00 / 00:00</span>
+    </footer>
   </main>
 </body>
 </html>
