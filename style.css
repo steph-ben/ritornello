@@ -113,6 +113,7 @@ select { padding: 8px; min-height: 44px; }
 .lists #add-track { align-self: flex-start; }
 .list-bar { display: flex; flex-wrap: wrap; gap: 8px; }
 .list-bar select { flex: 1; min-width: 10em; }
+.list-status { margin: 0; color: var(--accent); }
 .track-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .track-list li { display: flex; gap: 8px; }
 .track-list .track-open {

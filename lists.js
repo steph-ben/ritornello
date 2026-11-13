@@ -10,6 +10,7 @@ const $ = id => document.getElementById(id);
 let library = createLibrary();
 let storageWorks = true;
 let openTrackId = null;          // le morceau chargé dans le lecteur
+let loading = false;             // un morceau est en train de se charger
 const missingTrackIds = new Set(); // morceaux dont le fichier est à retrouver
 let openInPlayer = async () => false;
 let showMessage = () => {};
@@ -46,21 +47,24 @@ async function onAddTrack() {
   if (!picked) return;
   const { handle, file } = picked;
   const id = trackId(file.name, file.size);
-  changeLibrary(addTrackToList(library, currentList(library).id, file, Date.now()));
-  await rememberHandle(id, handle);
-  await open(id, file);
+  await loadOnce(async () => {
+    changeLibrary(addTrackToList(library, currentList(library).id, file, Date.now()));
+    await rememberHandle(id, handle);
+    await open(id, file);
+  });
 }
 
 // Toucher un morceau : on rouvre son fichier sans repasser par le sélecteur.
 async function onTrackClick(id) {
-  const file = await reopenFile(id);
-  if (file) {
-    await open(id, file);
-  } else {
-    missingTrackIds.add(id);
-    showMessage(`Fichier introuvable : ${library.tracks[id].name}. Touchez « Retrouver le fichier ».`);
-    render();
-  }
+  await loadOnce(async () => {
+    const file = await reopenFile(id);
+    if (file) {
+      await open(id, file);
+    } else {
+      missingTrackIds.add(id);
+      showMessage(`Fichier inaccessible (introuvable, ou accès refusé) : ${library.tracks[id].name}. Touchez « Retrouver le fichier ».`);
+    }
+  });
 }
 
 async function onFindTrack(id) {
@@ -71,8 +75,10 @@ async function onFindTrack(id) {
     showMessage(`Ce n'est pas le même fichier : ${track.name} (${formatSize(track.size)}) attendu.`);
     return;
   }
-  await rememberHandle(id, picked.handle);
-  await open(id, picked.file);
+  await loadOnce(async () => {
+    await rememberHandle(id, picked.handle);
+    await open(id, picked.file);
+  });
 }
 
 function onRemoveTrack(id) {
@@ -102,6 +108,21 @@ function onDeleteList() {
 }
 
 // --- Fichiers ---
+
+// Un seul chargement à la fois : sur téléphone, lire et décoder un fichier
+// prend quelques secondes, et un deuxième toucher mélangerait deux morceaux.
+async function loadOnce(work) {
+  if (loading) return;
+  loading = true;
+  $('list-status').hidden = false;
+  try {
+    await work();
+  } finally {
+    loading = false;
+    $('list-status').hidden = true;
+    render();
+  }
+}
 
 async function open(id, file) {
   const opened = await openInPlayer(file, library.tracks[id]);
