@@ -141,3 +141,21 @@ transposition. Avant de coder, vérifier sur le téléphone deux points en une
 petite page de test : la liste réelle des vitesses, et la précision du
 retour au début de la boucle. Ne rien faire pour Deezer, sauf un lien si
 Stéphane le veut.
+
+## Page de test
+
+La page `youtube-test.html` sert à vérifier l'API YouTube sur le téléphone.
+Elle n'est pas liée à l'application et n'est pas dans le cache hors ligne.
+
+Une fois poussée, on l'ouvre ici :
+https://steph-ben.github.io/ritornello/youtube-test.html
+
+Colle un lien YouTube, touche « Charger », puis lance la lecture.
+À noter sur le téléphone :
+
+1. La liste des vitesses proposées (elle apparaît au début de la lecture).
+2. Si le bouton « Essayer 0.85 » est accepté, ou arrondi à une autre vitesse.
+3. La précision de la boucle : pose A et B, active la boucle, puis lis l'écart
+   en ms dans le journal après quelques passages.
+4. Ce qui se passe quand l'écran se verrouille : la lecture continue-t-elle,
+   la boucle continue-t-elle, et que dit le journal au retour.
