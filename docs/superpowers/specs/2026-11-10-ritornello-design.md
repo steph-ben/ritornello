@@ -101,6 +101,7 @@ Les listes de morceaux :
 - Un accordeur de violon (sol, ré, la, mi).
 - Un accordeur de guitare.
 - Trouver la tonalité d'un morceau, comme le fait CarlTune.
+- Afficher la partition pendant qu'on joue le morceau.
 
 ## Ce qui serait un échec
 
