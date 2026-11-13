@@ -54,6 +54,9 @@ export async function loadAudio(arrayBuffer) {
 export function play() {
   if (!shifter || playing) return;
   ensureAudioContext();
+  // À la pause, le son déjà envoyé mais pas encore entendu est perdu :
+  // on repart exactement du temps entendu pour ne pas cumuler de décalage.
+  shifter.percentagePlayed = currentTime / duration;
   shifter.connect(gainNode);
   playing = true;
   setAnchor(currentTime);

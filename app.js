@@ -46,7 +46,15 @@ window.addEventListener('resize', renderTime);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && player.isPlaying()) keepScreenOn();
 });
+// SoundTouchJS s'arrête environ 0,35 s avant la vraie fin : une boucle dont
+// le dernier marqueur est tout au bout n'atteindrait jamais sa fin.
 player.onEnded(() => {
+  const bounds = loopActive ? loopBounds(markers, loop) : null;
+  if (bounds) {
+    player.seek(bounds.start);
+    player.play();
+    return;
+  }
   stopPlayback();
   player.seek(0);
   renderTime();
@@ -63,13 +71,19 @@ async function openTrack() {
     showMessage("Ce navigateur ne permet pas d'ouvrir les fichiers. Utilisez Chrome sur Android, ou Brave avec l'option file-system-access-api.");
     return;
   }
-  let file;
+  let handle;
   try {
     // Pas de filtre de type : sinon Proton Drive grise tous les fichiers.
-    const [handle] = await window.showOpenFilePicker();
-    file = await handle.getFile();
+    [handle] = await window.showOpenFilePicker();
   } catch {
     return; // sélecteur fermé sans choisir
+  }
+  let file;
+  try {
+    file = await handle.getFile();
+  } catch {
+    showMessage(`Impossible d'ouvrir ${handle.name} : le fichier n'est pas accessible.`);
+    return;
   }
   try {
     const track = await player.loadAudio(await file.arrayBuffer());
@@ -82,7 +96,7 @@ async function openTrack() {
     $('track-name').textContent = file.name;
     hideMessage();
   } catch {
-    showMessage(`Impossible de lire ${file.name} : format non reconnu par ce navigateur.`);
+    showMessage(`Impossible de lire ${file.name} : format non reconnu, ou fichier trop long pour la mémoire.`);
   }
   renderMarkers();
   renderTime();
