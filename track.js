@@ -28,12 +28,43 @@ export function markerNumber(markers, id) {
 
 // Début et fin de la boucle, ou null si elle est impossible
 // (marqueur absent, ou deux marqueurs au même instant).
-export function loopBounds(markers, loop) {
+// `toId: null` veut dire « jusqu'à la fin du morceau » (`duration`).
+export function loopBounds(markers, loop, duration = 0) {
   if (!loop) return null;
   const from = markers.find(m => m.id === loop.fromId);
-  const to = markers.find(m => m.id === loop.toId);
-  if (!from || !to || from.time === to.time) return null;
-  return { start: Math.min(from.time, to.time), end: Math.max(from.time, to.time) };
+  if (!from) return null;
+  const toTime = loop.toId === null ? duration : markers.find(m => m.id === loop.toId)?.time;
+  if (toTime === undefined || toTime === from.time) return null;
+  if (loop.toId === null && toTime < from.time) return null; // durée pas encore connue
+  return { start: Math.min(from.time, toTime), end: Math.max(from.time, toTime) };
+}
+
+// Nouvelle boucle quand on touche un marqueur. Une section va d'un
+// marqueur au suivant (ou à la fin du morceau pour le dernier).
+// - boucle coupée, ou on retouche la même section seule : cette section ;
+// - on touche une section dans une boucle de plusieurs : cette section ;
+// - sinon : la boucle s'étend jusqu'à la section touchée.
+export function tapLoop(markers, loop, loopActive, tappedId) {
+  const tapped = markers.findIndex(m => m.id === tappedId);
+  const current = loopActive ? loopSections(markers, loop) : null;
+  let first = tapped;
+  let last = tapped;
+  const insideWideLoop = current && current.first < current.last
+    && tapped >= current.first && tapped <= current.last;
+  if (current && !insideWideLoop) {
+    first = Math.min(current.first, tapped);
+    last = Math.max(current.last, tapped);
+  }
+  return { fromId: markers[first].id, toId: markers[last + 1]?.id ?? null };
+}
+
+// Première et dernière section (indices) couvertes par la boucle, ou null.
+function loopSections(markers, loop) {
+  if (!loop) return null;
+  const from = markers.findIndex(m => m.id === loop.fromId);
+  const to = loop.toId === null ? markers.length : markers.findIndex(m => m.id === loop.toId);
+  if (from < 0 || to < 0 || from === to) return null;
+  return { first: Math.min(from, to), last: Math.max(from, to) - 1 };
 }
 
 // Où sauter quand la lecture arrive à `time` : au début de la boucle si on a

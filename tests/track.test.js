@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds,
-  positionAfterTick, stepSpeed, stepSemitones, formatTime } from '../track.js';
+  positionAfterTick, stepSpeed, stepSemitones, formatTime, tapLoop } from '../track.js';
 
 test('addMarker keeps markers sorted by time with stable ids', () => {
   let m = addMarker([], 30);
@@ -67,4 +67,36 @@ test('formatTime gives mm:ss', () => {
   assert.equal(formatTime(14.9), '00:14');
   assert.equal(formatTime(292), '04:52');
   assert.equal(formatTime(3725), '62:05');
+});
+
+// Cinq marqueurs, ids 1 à 5 dans l'ordre du temps.
+const FIVE = [10, 20, 30, 40, 50].map((time, i) => ({ id: i + 1, time, name: `m${i + 1}` }));
+
+test('tapLoop: first tap loops from the marker to the next one', () => {
+  assert.deepEqual(tapLoop(FIVE, null, false, 2), { fromId: 2, toId: 3 });
+});
+
+test('tapLoop: tapping another marker extends the loop', () => {
+  assert.deepEqual(tapLoop(FIVE, { fromId: 2, toId: 3 }, true, 4), { fromId: 2, toId: 5 });
+});
+
+test('tapLoop: tapping inside a wide loop goes back to one section', () => {
+  assert.deepEqual(tapLoop(FIVE, { fromId: 2, toId: 5 }, true, 3), { fromId: 3, toId: 4 });
+});
+
+test('tapLoop: the last marker loops to the end of the track', () => {
+  assert.deepEqual(tapLoop(FIVE, null, false, 5), { fromId: 5, toId: null });
+});
+
+test('tapLoop: when the loop is off, a tap starts a new single section', () => {
+  assert.deepEqual(tapLoop(FIVE, { fromId: 1, toId: 3 }, false, 4), { fromId: 4, toId: 5 });
+});
+
+test('tapLoop: an old reversed loop is read in time order', () => {
+  assert.deepEqual(tapLoop(FIVE, { fromId: 4, toId: 2 }, true, 5), { fromId: 2, toId: null });
+});
+
+test('loopBounds: toId null means the end of the track', () => {
+  assert.deepEqual(loopBounds(FIVE, { fromId: 5, toId: null }, 200), { start: 50, end: 200 });
+  assert.equal(loopBounds(FIVE, { fromId: 5, toId: null }, 0), null);
 });
