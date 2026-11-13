@@ -40,7 +40,7 @@ export async function loadAudio(arrayBuffer) {
   duration = audioBuffer.duration;
   currentTime = 0;
   loop = null;
-  return { duration, samples: channels[0] };
+  return { duration, samples: channels[0], sampleRate: audioBuffer.sampleRate };
 }
 
 export function play() {

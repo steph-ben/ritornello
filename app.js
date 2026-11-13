@@ -123,6 +123,7 @@ async function openFile(file, track) {
   renderSettings();
   renderMarkers();
   renderTime();
+  announce('ritornello:track-opened', { track, samples: audio.samples, sampleRate: audio.sampleRate });
   return true;
 }
 
@@ -136,6 +137,7 @@ function onTrackReplaced(track) {
   applyLoop();
   openMarkerId = null;
   lastTappedId = null;
+  announce('ritornello:semitones', { trackId: track.id, semitones, key: track.key });
   renderSettings();
   renderMarkers();
   renderTime();
@@ -206,6 +208,7 @@ function changeSpeed(direction) {
 function changeSemitones(direction) {
   semitones = stepSemitones(semitones, direction);
   player.setSemitones(semitones);
+  announce('ritornello:semitones', { trackId: currentTrackId, semitones });
   renderSettings();
   rememberSettings();
 }
@@ -457,6 +460,20 @@ function drawArc(dial, fraction) {
     + arc(start, Math.max(start + 0.01, value), 'var(--accent)')
     + `<circle cx="${dx}" cy="${dy}" r="5" fill="var(--accent)"/>`;
 }
+
+// --- Modules à part (key.js, tuner.js) ---
+// Ils écoutent ces événements sur `document`, et app.js ne les importe pas :
+// - ritornello:track-opened { track, samples, sampleRate } : un morceau est ouvert ;
+// - ritornello:semitones { trackId, semitones, key? } : la transposition a changé.
+// key.js renvoie ritornello:key-found { trackId, key }, que l'on enregistre
+// avec les réglages du morceau (donc synchronisé).
+function announce(name, detail) {
+  document.dispatchEvent(new CustomEvent(name, { detail }));
+}
+
+document.addEventListener('ritornello:key-found', event => {
+  saveTrackSettings(event.detail.trackId, { key: event.detail.key });
+});
 
 function showMessage(text) {
   $('message').textContent = text;
