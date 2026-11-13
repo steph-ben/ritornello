@@ -50,7 +50,7 @@ async function onAddTrack() {
   await loadOnce(async () => {
     changeLibrary(addTrackToList(library, currentList(library).id, file, Date.now()));
     await rememberHandle(id, handle);
-    await open(id, file);
+    await open(id, await freshFile(handle, file));
   });
 }
 
@@ -77,7 +77,7 @@ async function onFindTrack(id) {
   }
   await loadOnce(async () => {
     await rememberHandle(id, picked.handle);
-    await open(id, picked.file);
+    await open(id, await freshFile(picked.handle, picked.file));
   });
 }
 
@@ -144,6 +144,16 @@ async function reopenFile(id) {
     return matchesTrack(library.tracks[id], file) ? file : null;
   } catch {
     return null;
+  }
+}
+
+// Redemande le fichier juste avant de le lire : sur Android, un fichier
+// obtenu avant l'enregistrement du handle peut devenir illisible.
+async function freshFile(handle, file) {
+  try {
+    return await handle.getFile();
+  } catch {
+    return file;
   }
 }
 

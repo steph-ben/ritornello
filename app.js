@@ -6,6 +6,7 @@ import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds,
   positionAfterTick, stepSpeed, stepSemitones, formatTime } from './track.js';
 import { computePeaks, drawTimeline, timeAtX } from './waveform.js';
 import { initLists, saveTrackSettings } from './lists.js';
+import { readFileBytes } from './readfile.js';
 
 const REFRESH_MS = 50;   // mise à jour de l'écran pendant la lecture
 const JUMP_SECONDS = 5;  // recul et avance
@@ -64,7 +65,7 @@ initLists({ onOpen: openFile, onMessage: showMessage });
 // Renvoie true si ça a marché (appelé par lists.js).
 async function openFile(file, track) {
   try {
-    const audio = await player.loadAudio(await file.arrayBuffer());
+    const audio = await player.loadAudio(await readFileBytes(file));
     stopPlayback();
     duration = audio.duration;
     peaks = computePeaks(audio.samples, PEAK_COUNT);

@@ -12,7 +12,7 @@
 const CACHE_PREFIX = 'ritornello-';
 const APP_FILES = [
   './', 'index.html', 'style.css', 'manifest.webmanifest',
-  'app.js', 'lists.js', 'library.js', 'storage.js', 'player.js', 'track.js', 'waveform.js',
+  'app.js', 'lists.js', 'library.js', 'storage.js', 'player.js', 'track.js', 'waveform.js', 'readfile.js',
   'vendor/signalsmith-stretch.mjs',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
