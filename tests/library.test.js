@@ -183,3 +183,14 @@ test('stampLists dates the library only when lists changed', () => {
   const same = updateTrack(before, trackId(BOURREE.name, BOURREE.size), { speed: 60 }, 3);
   assert.equal(stampLists(before, same, 42).listsModifiedAt, undefined);
 });
+
+// L'horloge de l'autre appareil avance : ses listes arrivent datées de 2000
+// alors qu'il est 1000 ici. Un morceau ajouté ensuite dans la deuxième liste
+// ne doit pas disparaître à la synchro suivante.
+test('stampLists dates after the lists received from a clock ahead', () => {
+  const fromOtherDevice = { ...addList(libWith(BOURREE, 1), 'Piano'), listsModifiedAt: 2000 };
+  const local = selectList(fromOtherDevice, fromOtherDevice.lists[1].id);
+  const withGavotte = stampLists(local, addTrackToList(local, local.currentListId, GAVOTTE, 1000), 1000);
+  const merged = mergeLibraries(withGavotte, fromSyncFile(toSyncFile(fromOtherDevice)));
+  assert.deepEqual(currentList(merged).trackIds, [trackId(GAVOTTE.name, GAVOTTE.size)]);
+});

@@ -73,8 +73,12 @@ const SYNC_VERSION = 1;
 
 // Date les listes quand une modification les a changées (créer, renommer,
 // supprimer, ajouter ou retirer un morceau). Sert à la fusion.
+// La date avance toujours : si les listes reçues d'un autre appareil sont
+// datées plus tard que notre horloge, la modification passe quand même après.
 export function stampLists(before, after, now) {
-  return after.lists === before.lists ? after : { ...after, listsModifiedAt: now };
+  if (after.lists === before.lists) return after;
+  const listsModifiedAt = Math.max(now, (before.listsModifiedAt ?? 0) + 1);
+  return { ...after, listsModifiedAt };
 }
 
 // Le contenu du fichier partagé. La liste affichée et le dernier morceau
