@@ -324,13 +324,21 @@ function renderTime() {
   const here = document.querySelector('.marker-panel .here');
   if (here) here.textContent = `Placer à ${formatTime(currentTime)}`;
 
-  const playing = player.isPlaying();
-  playButton.innerHTML = `<svg class="ico"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`;
-  playButton.setAttribute('aria-label', playing ? 'Pause' : 'Lecture');
+  renderPlayButton(player.isPlaying());
   playButton.disabled = duration === 0;
   transportButtons.forEach(button => { button.disabled = duration === 0; });
 
   if (!$('player-screen').hidden) drawTimeline(canvas, { peaks, duration, currentTime, markers, bounds });
+}
+
+// On ne remplace l'icône que si l'état change : renderTime tourne toutes les
+// 50 ms, et une icône remplacée entre l'appui et le relâchement du doigt
+// annule le clic (le bouton pause ne marchait qu'une fois sur deux).
+function renderPlayButton(playing) {
+  const label = playing ? 'Pause' : 'Lecture';
+  if (playButton.getAttribute('aria-label') === label) return;
+  playButton.innerHTML = `<svg class="ico"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`;
+  playButton.setAttribute('aria-label', label);
 }
 
 function renderSettings() {
