@@ -38,7 +38,14 @@ et la synchro des fichiers audio : la musique n'est jamais copiée.
 
 1. **Gist secret, via l'API GitHub appelée directement depuis la page
    (retenu).** L'API accepte les appels d'une page web (CORS). Le jeton est
-   « fine-grained », avec le seul droit « Gists ».
+   un jeton **classique** avec le seul droit `gist`. Le lien
+   `https://github.com/settings/tokens/new?scopes=gist&description=Ritornello`
+   ouvre la page de création avec la case déjà cochée. Révisé après essai :
+   le jeton « fine-grained » cache la permission « Gists » dans les
+   permissions du compte, et Stéphane ne l'a pas trouvée.
+   Un bouton « Se connecter à GitHub » (OAuth) demanderait un serveur à
+   nous : GitHub n'autorise pas une page web à échanger le code contre un
+   jeton.
 2. Gist public : écarté. Il faut quand même un jeton pour écrire, et les
    listes seraient visibles de tous. Stéphane l'avait proposé pour faire
    simple, mais ça ne simplifie rien. Si on change d'avis, c'est une ligne
@@ -116,7 +123,7 @@ Toucher le nuage ouvre un panneau sous le titre :
 └───────────────────────────────────────┘
 ```
 
-- Le lien ouvre la page GitHub de création d'un jeton fine-grained.
+- Le lien ouvre la page GitHub de création d'un jeton classique, avec le droit `gist` déjà coché.
 - Un jeton refusé (401) affiche « Jeton refusé par GitHub » dans le panneau.
   La synchro reste coupée.
 - « Couper la synchro » oublie le jeton et l'identifiant du gist sur cet
