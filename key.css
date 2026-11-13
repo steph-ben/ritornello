@@ -2,3 +2,4 @@
 .track-title { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .track-key { font-size: .8rem; color: var(--accent-2); }
 .track-key:empty { display: none; }
+.track-key-origin { color: var(--text-dim); }
