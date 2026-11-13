@@ -148,6 +148,11 @@ succès (décision de Stéphane).
   `spike/index.html` réussi sur le laptop Linux le 2026-11-13. macOS
   considéré comme OK sans test (même moteur Chromium).
 - Safari et Firefox n'ont pas `showOpenFilePicker`.
+- Le panneau navigateur de Claude Desktop laisse choisir un fichier mais
+  refuse de le lire (`getFile` : `NotAllowedError`). Pour essayer
+  Ritornello sur le laptop, utiliser Brave.
+- Lecteur (marqueurs, boucle) essayé avec succès dans Brave sur le laptop
+  Linux le 2026-11-13, avec un `.mp3`.
 
 ## Choix validés par Stéphane
 
