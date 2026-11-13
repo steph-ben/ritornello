@@ -46,15 +46,7 @@ window.addEventListener('resize', renderTime);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && player.isPlaying()) keepScreenOn();
 });
-// SoundTouchJS s'arrête environ 0,35 s avant la vraie fin : une boucle dont
-// le dernier marqueur est tout au bout n'atteindrait jamais sa fin.
 player.onEnded(() => {
-  const bounds = loopActive ? loopBounds(markers, loop) : null;
-  if (bounds) {
-    player.seek(bounds.start);
-    player.play();
-    return;
-  }
   stopPlayback();
   player.seek(0);
   renderTime();
@@ -127,7 +119,8 @@ function seekTo(seconds) {
   renderTime();
 }
 
-// Appelé toutes les 50 ms pendant la lecture.
+// Appelé toutes les 50 ms pendant la lecture. Le moteur boucle tout seul ;
+// ce test sert quand on déplace la lecture après la fin de la boucle.
 function onTick() {
   if (loopActive) {
     const jump = positionAfterTick(player.getCurrentTime(), loopBounds(markers, loop));
@@ -153,6 +146,7 @@ function changeSemitones(direction) {
 function onAddMarker() {
   markers = addMarker(markers, player.getCurrentTime());
   updateLoopAfterMarkerChange();
+  applyLoop();
   renderMarkers();
   renderTime();
 }
@@ -160,6 +154,7 @@ function onAddMarker() {
 function onDeleteMarker(id) {
   markers = removeMarker(markers, id);
   updateLoopAfterMarkerChange();
+  applyLoop();
   renderMarkers();
   renderTime();
 }
@@ -172,12 +167,14 @@ function onRenameMarker(id, name) {
 function onLoopSelect() {
   loop = { fromId: Number($('loop-from').value), toId: Number($('loop-to').value) };
   if (!loopBounds(markers, loop)) loopActive = false;
+  applyLoop();
   renderMarkers();
   renderTime();
 }
 
 function toggleLoop() {
   loopActive = !loopActive && loopBounds(markers, loop) !== null;
+  applyLoop();
   renderMarkers();
   renderTime();
 }
@@ -190,6 +187,11 @@ function updateLoopAfterMarkerChange() {
     loopActive = false;
     loop = markers.length >= 2 ? { fromId: markers[0].id, toId: markers[1].id } : null;
   }
+}
+
+// Transmet la boucle au moteur audio, qui boucle tout seul.
+function applyLoop() {
+  player.setLoop(loopActive ? loopBounds(markers, loop) : null);
 }
 
 // --- Écran allumé pendant la lecture ---

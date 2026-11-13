@@ -1,72 +1,60 @@
-// Lecture audio. C'est le seul fichier qui touche Web Audio et SoundTouchJS :
-// pour changer de bibliothèque (Rubber Band par exemple), on ne change que lui.
+// Lecture audio. C'est le seul fichier qui touche Web Audio et la bibliothèque
+// de ralenti/transposition (Signalsmith Stretch) : pour en changer, on ne
+// change que lui.
 
-import { PitchShifter } from './vendor/soundtouch.js';
+import SignalsmithStretch from './vendor/signalsmith-stretch.mjs';
 
-const BUFFER_SIZE = 4096;
+const UPDATE_SECONDS = 0.05;  // fréquence à laquelle le moteur donne sa position
 
 let audioContext = null;
-let gainNode = null;
-let shifter = null;   // le morceau en cours (un PitchShifter de SoundTouchJS)
+let stretch = null;   // le moteur Signalsmith (un nœud Web Audio)
 let duration = 0;
-let currentTime = 0;  // temps entendu quand la lecture est en pause
+let currentTime = 0;  // position quand la lecture est en pause
 let playing = false;
-// Pendant la lecture, le temps entendu se calcule depuis l'horloge audio :
-// SoundTouchJS annonce sa position de lecture dans le fichier, qui est en
-// avance de 0,1 à 0,4 s sur ce qu'on entend (il remplit ses tampons).
-let anchorContextTime = 0;  // heure de l'horloge audio au dernier recalage
-let anchorTrackTime = 0;    // temps du morceau au dernier recalage
 let speed = 100;      // en %
 let semitones = 0;
+let loop = null;      // { start, end } en secondes, ou null
 let endListener = () => {};
 
 // À appeler pendant un geste de l'utilisateur (clic) : sinon le navigateur
 // refuse de jouer du son.
-function ensureAudioContext() {
-  if (!audioContext) {
-    audioContext = new AudioContext();
-    gainNode = audioContext.createGain();
-    gainNode.connect(audioContext.destination);
-  }
+async function ensureEngine() {
+  if (!audioContext) audioContext = new AudioContext();
   if (audioContext.state === 'suspended') audioContext.resume();
+  if (!stretch) {
+    stretch = await SignalsmithStretch(audioContext);
+    stretch.connect(audioContext.destination);
+    stretch.setUpdateInterval(UPDATE_SECONDS, checkEnd);
+  }
 }
 
 // Décode le fichier et remplace le morceau en cours.
 export async function loadAudio(arrayBuffer) {
-  ensureAudioContext();
+  await ensureEngine();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
   pause();
-
-  // SoundTouchJS ne sait pas vraiment retirer ses écouteurs (off() est
-  // cassé) : on crée un nouveau PitchShifter et on ignore les événements
-  // de l'ancien en comparant avec `shifter`.
-  const newShifter = new PitchShifter(audioContext, audioBuffer, BUFFER_SIZE, () => {
-    if (newShifter === shifter) handleEnd();
-  });
-
-  shifter = newShifter;
+  const channels = [];
+  for (let c = 0; c < audioBuffer.numberOfChannels; c++) channels.push(audioBuffer.getChannelData(c));
+  await stretch.dropBuffers();
+  await stretch.addBuffers(channels);
   duration = audioBuffer.duration;
   currentTime = 0;
-  applySettings();
-  return { duration, samples: audioBuffer.getChannelData(0) };
+  loop = null;
+  return { duration, samples: channels[0] };
 }
 
 export function play() {
-  if (!shifter || playing) return;
-  ensureAudioContext();
-  // À la pause, le son déjà envoyé mais pas encore entendu est perdu :
-  // on repart exactement du temps entendu pour ne pas cumuler de décalage.
-  shifter.percentagePlayed = currentTime / duration;
-  shifter.connect(gainNode);
+  if (!stretch || playing || duration === 0) return;
+  audioContext.resume();
   playing = true;
-  setAnchor(currentTime);
+  schedule({ active: true, input: currentTime });
 }
 
 export function pause() {
-  if (!shifter || !playing) return;
-  currentTime = heardTime();
-  shifter.disconnect();
+  if (!stretch || !playing) return;
+  currentTime = stretch.inputTime;
   playing = false;
+  schedule({ active: false });
 }
 
 export function isPlaying() {
@@ -74,57 +62,53 @@ export function isPlaying() {
 }
 
 export function seek(seconds) {
-  if (!shifter) return;
-  // Un peu avant la fin au maximum : au-delà, SoundTouchJS lit hors du fichier.
-  const time = Math.min(Math.max(0, seconds), Math.max(0, duration - 0.05));
-  // Attention : ce setter attend une fraction entre 0 et 1 (le getter
-  // renvoie 0–100).
-  shifter.percentagePlayed = time / duration;
-  currentTime = time;
-  setAnchor(time);
+  if (!stretch) return;
+  currentTime = Math.min(Math.max(0, seconds), duration);
+  stretch.inputTime = currentTime;  // affichage juste avant le prochain retour du moteur
+  if (playing) schedule({ input: currentTime });
 }
 
 export function getCurrentTime() {
-  return heardTime();
+  if (!stretch || !playing) return currentTime;
+  return Math.min(stretch.inputTime, duration);
 }
 
 export function setSpeed(percent) {
-  if (playing) setAnchor(heardTime());
   speed = percent;
-  applySettings();
+  if (stretch) schedule({});
 }
 
 export function setSemitones(value) {
   semitones = value;
-  applySettings();
+  if (stretch) schedule({});
+}
+
+// Le moteur boucle tout seul entre start et end ; null coupe la boucle.
+export function setLoop(bounds) {
+  loop = bounds;
+  if (stretch) schedule({});
 }
 
 export function onEnded(callback) {
   endListener = callback;
 }
 
-function setAnchor(trackTime) {
-  anchorContextTime = audioContext.currentTime;
-  anchorTrackTime = trackTime;
+// Envoie au moteur les réglages courants, plus ce qui change (`changes`).
+function schedule(changes) {
+  stretch.schedule({
+    rate: speed / 100,
+    semitones,
+    loopStart: loop ? loop.start : 0,
+    loopEnd: loop ? loop.end : 0,
+    ...changes,
+  });
 }
 
-function heardTime() {
-  if (!playing) return currentTime;
-  const latency = audioContext.outputLatency || 0;
-  const elapsed = Math.max(0, audioContext.currentTime - anchorContextTime - latency);
-  return Math.min(duration, anchorTrackTime + elapsed * speed / 100);
-}
-
-function applySettings() {
-  if (!shifter) return;
-  shifter.tempo = speed / 100;
-  shifter.pitchSemitones = semitones;
-}
-
-// SoundTouchJS appelle la fin à chaque bloc tant que le son est branché :
-// on ne la traite qu'une fois.
-function handleEnd() {
-  if (!playing) return;
+// Appelé par le moteur à chaque nouvelle position : à la fin du morceau,
+// on s'arrête (une boucle active ne l'atteint jamais).
+function checkEnd(inputTime) {
+  if (!playing || inputTime < duration) return;
   pause();
+  currentTime = duration;
   endListener();
 }

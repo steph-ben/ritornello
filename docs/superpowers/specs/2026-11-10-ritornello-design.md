@@ -161,10 +161,11 @@ succès (décision de Stéphane).
   le morceau reste dans la liste avec un bouton « Retrouver le fichier » qui
   rouvre le sélecteur et garde les marqueurs.
 - Thème sombre par défaut, avec un style propre à Ritornello.
-- Transposition et vitesse : SoundTouchJS, en JavaScript pur, sans étape
-  de build. Si le son gêne au violon, on passera à Rubber Band (WASM), qui
-  a une meilleure qualité mais est plus lourd. Le code audio reste isolé
-  dans un seul fichier pour que ce changement reste simple.
+- Transposition et vitesse : Signalsmith Stretch 1.3.2 (WASM, licence MIT),
+  qui boucle aussi tout seul entre deux marqueurs. SoundTouchJS a été
+  essayé d'abord : son « pas top » en ralenti. Comparaison à l'oreille le
+  2026-11-13 (`spike/stretch.html`, retiré depuis) : Signalsmith nettement
+  meilleur. Le code audio reste isolé dans `player.js`.
 - Pas de test séparé pour le `.aac` : le lecteur décode déjà avec
   `decodeAudioData`, donc la première écoute d'un `.aac` sur Android sert
   de test.
