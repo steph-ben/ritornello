@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ritornello — styles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,400..700&family=Inter+Tight:wght@400;600;800;900&family=Inter:wght@400;500;600&family=Outfit:wght@300;400;600&family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #15161a; --surface: #202228; --surface2: #2a2c34; --border: #33353e;
+    --text: #e8e6e1; --dim: #8f8d86; --accent: #e0a458; --accent-soft: rgba(224,164,88,.16);
+    --error: #ef7a6b;
+    --accent-deep: #3a2f20; --accent-line: #8a6a3c; --tab-on: #4a3e2c; --on-accent: #15161a;
+    --wave: #4b4e59; --wave-played: #b9b6ad; --track: #3a3c45;
+  }
+  [data-palette="corail"] { --bg:#12141c; --surface:#1b1e29; --surface2:#252937; --border:#2c3040; --text:#eceef4; --dim:#8a8fa3;
+    --accent:#ff7a59; --accent-soft:rgba(255,122,89,.15); --accent-deep:#3a2019; --accent-line:#9c4a37; --tab-on:#3a2a2a; --on-accent:#12141c;
+    --wave:#3c4256; --wave-played:#b8bccb; --track:#2f3446; }
+  [data-palette="sauge"] { --bg:#0f1513; --surface:#18201d; --surface2:#212b27; --border:#2a3531; --text:#e6efe9; --dim:#86968f;
+    --accent:#5fd3a5; --accent-soft:rgba(95,211,165,.14); --accent-deep:#16332a; --accent-line:#2f7a5e; --tab-on:#1f3a30; --on-accent:#0f1513;
+    --wave:#38463f; --wave-played:#b3c4bb; --track:#2b3833; }
+  [data-palette="lilas"] { --bg:#14121b; --surface:#1e1b28; --surface2:#282435; --border:#322d42; --text:#ece8f5; --dim:#918aa6;
+    --accent:#b69cff; --accent-soft:rgba(182,156,255,.15); --accent-deep:#2c2442; --accent-line:#6e5aa8; --tab-on:#342c4a; --on-accent:#14121b;
+    --wave:#423c56; --wave-played:#c2bbd6; --track:#352f47; }
+
+  /* ======== Sélecteur de style ======== */
+  .switch { position: absolute; top: 0; left: 0; right: 0; height: 46px; z-index: 6; display: flex; gap: 6px; align-items: center;
+    padding: 0 10px; overflow-x: auto; scrollbar-width: none; background: rgba(0,0,0,.55); backdrop-filter: blur(8px); }
+  .switch button { padding: 7px 12px; border-radius: 999px; font: 600 13px system-ui; color: #ddd; background: rgba(255,255,255,.1); white-space: nowrap; }
+  .switch button.on { background: #fff; color: #111; }
+  .screen { top: 46px; }
+  .phone { font-family: var(--font-ui, system-ui); transition: background .4s; }
+  .home-head h1, .bar .title, .clocktile .t, .gauge .val, .mk .tm, .tr-time, .resume strong { font-family: var(--font-num, system-ui); }
+
+  /* ======== 1. Partition : papier, encre, vermillon ======== */
+  [data-style="partition"] { color-scheme: light;
+    --bg:#f3eee2; --surface:#fbf8f0; --surface2:#ebe4d4; --border:#ddd2bd; --text:#1f1b16; --dim:#80776a;
+    --accent:#c8432b; --accent-soft:rgba(200,67,43,.09); --accent-deep:#f7e3dc; --accent-line:#c8432b; --tab-on:#1f1b16; --on-accent:#fbf8f0;
+    --wave:#d3c9b5; --wave-played:#1f1b16; --track:#e2dac9; --wave-style: staff;
+    --font-ui: 'Inter', system-ui; --font-num: 'Fraunces', serif; }
+  [data-style="partition"] .home-head h1 { font-style: italic; font-weight: 500; font-size: 38px; letter-spacing: -.5px; }
+  [data-style="partition"] .tile, [data-style="partition"] .wave, [data-style="partition"] .markers, [data-style="partition"] .resume
+    { border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(60,40,10,.06); }
+  [data-style="partition"] .tab.on { color: var(--surface); }
+  [data-style="partition"] .clocktile .t { font-weight: 400; font-size: 34px; }
+  [data-style="partition"] .gauge .val { font-weight: 500; font-size: 22px; }
+  [data-style="partition"] .mk .num { border-radius: 4px; }
+  [data-style="partition"] .mk .tm { font-style: italic; }
+  [data-style="partition"] .tr-row .play { box-shadow: 0 6px 18px rgba(200,67,43,.35); }
+
+  /* ======== 2. Néon : nuit, verre, dégradé magenta → orange ======== */
+  [data-style="neon"] {
+    --bg:#07070c; --surface:rgba(255,255,255,.05); --surface2:rgba(255,255,255,.1); --border:rgba(255,255,255,.08); --text:#f4f3ff; --dim:#8c8ba8;
+    --accent:#ff4fd8; --accent2:#ffb347; --accent-soft:rgba(255,79,216,.14); --accent-deep:#2a0f2a; --accent-line:#ff4fd8; --tab-on:rgba(255,79,216,.28); --on-accent:#07070c;
+    --wave:#262638; --wave-played:#ff4fd8; --track:#23233a; --wave-style: glow;
+    --font-ui: 'Space Grotesk', system-ui; --font-num: 'Space Grotesk', system-ui;
+    background: radial-gradient(circle at 15% 5%, rgba(255,79,216,.28), transparent 42%),
+                radial-gradient(circle at 105% 55%, rgba(255,179,71,.2), transparent 45%), #07070c; }
+  [data-style="neon"] .tile, [data-style="neon"] .wave, [data-style="neon"] .markers, [data-style="neon"] .resume, [data-style="neon"] .tabs
+    { border: 1px solid var(--border); backdrop-filter: blur(14px); }
+  [data-style="neon"] .home-head h1 { font-weight: 700; font-size: 34px; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; color: transparent; }
+  [data-style="neon"] .clocktile .t { font-weight: 300; text-shadow: 0 0 18px rgba(255,79,216,.6); }
+  [data-style="neon"] .tr-row .play, [data-style="neon"] .resume .disc, [data-style="neon"] .fab
+    { background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 0 28px rgba(255,79,216,.55); }
+  [data-style="neon"] .gauge svg { filter: drop-shadow(0 0 5px rgba(255,79,216,.7)); }
+  [data-style="neon"] .mk.in { border-image: linear-gradient(var(--accent), var(--accent2)) 1; }
+
+  /* ======== 3. Luthier : bois verni, or de colophane, serif ======== */
+  [data-style="luthier"] {
+    --bg:#1a120c; --surface:#2a1d14; --surface2:#3a2a1d; --border:#47331f; --text:#f4e7d4; --dim:#a88f73;
+    --accent:#e8b04a; --accent-soft:rgba(232,176,74,.13); --accent-deep:#3d2b14; --accent-line:#b0853a; --tab-on:#4c3520; --on-accent:#1a120c;
+    --wave:#4d3a29; --wave-played:#ecd09a; --track:#4a3626; --wave-style: round;
+    --font-ui: 'Outfit', system-ui; --font-num: 'DM Serif Display', serif;
+    background: repeating-linear-gradient(93deg, rgba(255,220,180,.018) 0 2px, transparent 2px 9px),
+                radial-gradient(ellipse at 50% -15%, #5a3419, transparent 60%), #1a120c; }
+  [data-style="luthier"] .tile, [data-style="luthier"] .wave, [data-style="luthier"] .markers, [data-style="luthier"] .resume
+    { border-radius: 22px; box-shadow: inset 0 1px 0 rgba(255,230,190,.07), 0 6px 18px rgba(0,0,0,.35); }
+  [data-style="luthier"] .home-head h1 { font-family: 'DM Serif Display', serif; font-style: italic; font-weight: 400; font-size: 38px; color: var(--accent); }
+  [data-style="luthier"] .clocktile .t { font-size: 34px; }
+  [data-style="luthier"] .clocktile .t small { font-family: 'Outfit'; }
+  [data-style="luthier"] .tr-row .play, [data-style="luthier"] .resume .disc
+    { background: radial-gradient(circle at 35% 30%, #ffd98a, #d99a33 60%, #a8701f); box-shadow: 0 6px 20px rgba(232,176,74,.35); }
+
+  /* ======== 4. Signal : noir, blanc, jaune électrique, angles droits ======== */
+  [data-style="signal"] {
+    --bg:#000; --surface:#0b0b0b; --surface2:#1a1a1a; --border:#2b2b2b; --text:#fff; --dim:#8a8a8a;
+    --accent:#d7ff3a; --accent-soft:rgba(215,255,58,.1); --accent-deep:#000; --accent-line:#d7ff3a; --tab-on:#fff; --on-accent:#000;
+    --wave:#333; --wave-played:#fff; --track:#2b2b2b; --wave-style: lines;
+    --font-ui: 'Inter Tight', system-ui; --font-num: 'Inter Tight', system-ui; }
+  [data-style="signal"] :is(.tile, .wave, .markers, .resume, .tabs, .tab, .fab, .tool, .mk .num, .tr-row button, .disc) { border-radius: 0 !important; }
+  [data-style="signal"] :is(.tile, .wave, .markers, .resume) { border: 1px solid var(--border); }
+  [data-style="signal"] .home-head h1 { text-transform: uppercase; font-weight: 900; font-size: 44px; letter-spacing: -2px; }
+  [data-style="signal"] .tab.on { color: #000; }
+  [data-style="signal"] .clocktile .t { font-weight: 800; font-size: 34px; letter-spacing: -1.5px; }
+  [data-style="signal"] .gauge .val { font-weight: 800; font-size: 24px; }
+  [data-style="signal"] .mk.in { border-left-width: 6px; }
+  [data-style="signal"] .lbl, [data-style="signal"] .resume small { text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; }
+
+  .palettes { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; z-index: 6; }
+  .palettes button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; }
+  .palettes button.on { border-color: var(--text); }
+  .ico { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .play .ico { width: 34px; height: 34px; fill: currentColor; stroke: none; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #0c0d10; color: var(--text); font: 16px/1.35 system-ui, sans-serif; }
+  body { display: flex; justify-content: center; align-items: flex-start; gap: 24px; padding: 16px; }
+  .note { max-width: 300px; color: var(--dim); font-size: 14px; }
+  .note h2 { color: var(--text); font-size: 18px; margin: 0 0 8px; }
+  .note li { margin-bottom: 6px; }
+  .note b { color: var(--accent); font-weight: 600; }
+  .phone { width: 390px; height: 820px; background: var(--bg); border-radius: 28px; border: 1px solid var(--border);
+    position: relative; overflow: hidden; flex: none; }
+  @media (max-width: 760px) {
+    body { padding: 0; display: block; }
+    .note { display: none; }
+    .phone { width: 100%; height: 100dvh; border-radius: 0; border: 0; }
+  }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; transition: transform .28s ease, opacity .28s; }
+  .screen.away-right { transform: translateX(100%); }
+  .screen.away-left { transform: translateX(-25%); opacity: 0; pointer-events: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Listes ---------- */
+  .home-head { padding: 22px 20px 6px; }
+  .home-head h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.3px; }
+  .resume { margin: 14px 16px 4px; display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+    background: var(--surface); border-radius: 18px; text-align: left; width: calc(100% - 32px); }
+  .resume .disc .ico { width: 22px; height: 22px; fill: currentColor; stroke: none; }
+  .resume .disc { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--on-accent);
+    display: grid; place-items: center; font-size: 20px; flex: none; }
+  .resume small { display: block; color: var(--dim); font-size: 13px; }
+  .resume strong { display: block; font-size: 17px; }
+  .tabs { display: flex; gap: 4px; margin: 16px 16px 4px; padding: 4px; background: var(--surface); border-radius: 999px; overflow-x: auto; scrollbar-width: none; }
+  .tab { padding: 9px 14px; border-radius: 999px; white-space: nowrap; color: var(--dim); }
+  .tab.on { background: var(--tab-on); color: var(--text); font-weight: 600; }
+  .rows { flex: 1; overflow-y: auto; padding: 6px 0 100px; }
+  .row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 0 20px; min-height: 60px;
+    border-bottom: 1px solid var(--border); }
+  .row .name { flex: 1; min-width: 0; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .chev { color: var(--dim); }
+  .row.missing .name { color: var(--dim); }
+  .row.missing .chev { color: var(--error); font-size: 13px; }
+  .fab { position: absolute; right: 18px; bottom: 22px; width: 60px; height: 60px; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent); font-size: 30px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+
+  /* ---------- Lecteur ---------- */
+  .bar { display: flex; align-items: center; gap: 6px; padding: 10px 8px 6px; }
+  .bar .back { padding: 10px 12px; color: var(--accent); font-size: 22px; }
+  .bar .title { flex: 1; min-width: 0; font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 8px; padding: 4px 12px; }
+  .tile { background: var(--surface); border-radius: 16px; height: 104px; position: relative; touch-action: none; user-select: none; }
+  .gauge { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 10px; }
+  .gauge svg { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); }
+  .gauge .val { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .gauge .val.changed { color: var(--accent); }
+  .gauge .lbl { font-size: 13px; color: var(--dim); }
+  .gauge .pm { position: absolute; bottom: 8px; font-size: 18px; color: var(--dim); width: 34px; text-align: center; }
+  .gauge .pm.minus { left: 2px; } .gauge .pm.plus { right: 2px; }
+  .clocktile { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .clocktile .t { font-size: 30px; font-weight: 300; }
+  .clocktile .t small { font-size: 18px; color: var(--dim); }
+  .clocktile .lp { font-size: 13px; color: var(--dim); margin-top: 4px; }
+  .clocktile .pass { font-size: 13px; color: var(--accent); margin-top: 2px; min-height: 17px; }
+  .clocktile .pass.pulse { animation: pulse .6s ease; }
+  @keyframes pulse { 0% { transform: scale(1.4); } 100% { transform: scale(1); } }
+  .wave { margin: 8px 12px 0; height: 120px; background: var(--surface); border-radius: 16px; overflow: hidden; touch-action: none; }
+  .wave canvas { width: 100%; height: 100%; display: block; }
+  .tools { display: flex; align-items: center; gap: 4px; padding: 6px 10px 2px; }
+  .tool { height: 44px; padding: 0 12px; border-radius: 12px; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .tool.on { background: var(--accent-soft); color: var(--accent); }
+  .tool.right { margin-left: auto; color: var(--dim); }
+  .tool.right.on { color: var(--accent); background: var(--accent-soft); }
+  .markers { flex: 1; overflow-y: auto; margin: 4px 12px 0; background: var(--surface); border-radius: 16px; padding: 4px 0; }
+  .mk { display: flex; align-items: center; gap: 12px; padding: 0 14px 0 10px; min-height: 48px; width: 100%; text-align: left;
+    border-left: 3px solid transparent; }
+  .mk.in { border-left-color: var(--accent); background: var(--accent-soft); }
+  .mk .num { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--accent-line); background: var(--accent-deep); color: var(--accent);
+    display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+  .mk .tm { font-size: 15px; } .mk .tm small { color: var(--dim); }
+  .mk .nm { flex: 1; min-width: 0; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mk.in .nm { color: var(--text); }
+  .mk input { flex: 1; min-width: 0; background: var(--surface2); border: 0; border-radius: 8px; padding: 8px; color: var(--text); font: inherit; }
+  .mk .del { width: 36px; height: 36px; color: var(--error); font-size: 18px; }
+  .transport { padding: 10px 16px 18px; }
+  .tr-row { display: flex; align-items: center; justify-content: space-between; }
+  .tr-row button { width: 52px; height: 52px; color: var(--text); border-radius: 50%; display: grid; place-items: center; }
+  .tr-row .play { width: 76px; height: 76px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+  .tr-row .ab { width: 52px; height: 52px; border-radius: 50%; color: var(--dim); }
+  .tr-row .ab.on { color: var(--accent); background: var(--accent-soft); }
+  .tr-row .ab.on { background: var(--accent); color: var(--on-accent); }
+  .tr-time { text-align: right; color: var(--dim); font-size: 13px; margin-top: 2px; }
+  .toast { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+    padding: 8px 14px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; z-index: 5; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="note">
+  <h2>Quatre directions de style</h2>
+  <p>Même écran, mêmes gestes. Change de style avec la barre en haut du téléphone.</p>
+  <ul>
+    <li><b>Partition</b> : papier crème, encre noire, rouge vermillon. Chiffres en serif (Fraunces), forme d'onde posée sur une portée. Clair : lisible dans une pièce éclairée.</li>
+    <li><b>Néon</b> : nuit profonde, cartes en verre dépoli, dégradé magenta → orange qui brille. Le plus « wouah » à l'ouverture.</li>
+    <li><b>Luthier</b> : bois verni sombre, or de colophane, serif élégant (DM Serif Display). Chaud, fait pour le violon.</li>
+    <li><b>Signal</b> : noir et blanc, jaune électrique, angles droits, chiffres très gras. Le plus lisible de loin.</li>
+  </ul>
+</div>
+
+<div class="phone" data-style="neon">
+  <div class="switch" id="switch">
+    <button data-s="partition">Partition</button>
+    <button data-s="neon">Néon</button>
+    <button data-s="luthier">Luthier</button>
+    <button data-s="signal">Signal</button>
+  </div>
+  <!-- ===== Listes ===== -->
+  <section class="screen" id="lists">
+    <div class="home-head"><h1>Ritornello</h1></div>
+    <button class="resume" onclick="openTrack(0)">
+      <span class="disc"><svg class="ico" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></span>
+      <span><small>Reprendre</small><strong>Bach – Gavotte en rondeau</strong></span>
+    </button>
+    <div class="tabs">
+      <button class="tab on">Violon – cours</button>
+      <button class="tab">Piano</button>
+      <button class="tab">Orchestre</button>
+      <button class="tab" onclick="toast('Nouvelle liste')">＋</button>
+    </div>
+    <div class="rows">
+      <button class="row" onclick="openTrack(0)"><span class="name">Bach – Gavotte en rondeau</span><span class="chev">›</span></button>
+      <button class="row" onclick="openTrack(1)"><span class="name">Suzuki 2 – Chœur des chasseurs</span><span class="chev">›</span></button>
+      <button class="row" onclick="openTrack(2)"><span class="name">Accolay – Concerto en la mineur</span><span class="chev">›</span></button>
+      <button class="row" onclick="openTrack(3)"><span class="name">Seitz – Concerto n° 2</span><span class="chev">›</span></button>
+      <button class="row missing" onclick="toast('Ouvre le sélecteur pour retrouver le fichier')"><span class="name">Gammes – Sol majeur</span><span class="chev">à retrouver</span></button>
+    </div>
+    <button class="fab" onclick="toast('Ouvre le sélecteur de fichiers')" aria-label="Ajouter un morceau">＋</button>
+  </section>
+
+  <!-- ===== Lecteur ===== -->
+  <section class="screen away-right" id="player">
+    <div class="bar">
+      <button class="back" onclick="closeTrack()" aria-label="Listes">‹</button>
+      <div class="title" id="p-title"></div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile gauge" id="g-pitch"><svg width="76" height="50"></svg><div class="val tnum"></div><div class="lbl">Ton</div><span class="pm minus">−</span><span class="pm plus">+</span></div>
+      <div class="tile gauge" id="g-speed"><svg width="76" height="50"></svg><div class="val tnum"></div><div class="lbl">Vitesse</div><span class="pm minus">−</span><span class="pm plus">+</span></div>
+      <div class="tile clocktile"><div class="t tnum" id="time"></div><div class="lp tnum" id="loop-range"></div><div class="pass" id="pass"></div></div>
+    </div>
+
+    <div class="wave"><canvas id="wave"></canvas></div>
+
+    <div class="tools">
+      <button class="tool" onclick="addMarker()">＋ Marqueur</button>
+      <button class="tool right" id="edit-btn" onclick="toggleEdit()">✎</button>
+    </div>
+    <div class="markers" id="markers"></div>
+
+    <div class="transport">
+      <div class="tr-row">
+        <button onclick="seek(0)" aria-label="Début"><svg class="ico" viewBox="0 0 24 24"><path d="M6 5v14"/><path d="M18 6l-8 6 8 6z" fill="currentColor"/></svg></button>
+        <button onclick="seek(pos-5)" aria-label="−5 s"><svg class="ico" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><text x="12" y="15.5" font-size="8" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui" font-weight="700">5</text></svg></button>
+        <button class="play" id="play" onclick="togglePlay()"><svg class="ico" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+        <button onclick="seek(pos+5)" aria-label="+5 s"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><text x="12" y="15.5" font-size="8" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui" font-weight="700">5</text></svg></button>
+        <button class="ab" id="loopbtn" onclick="toggleLoop()" aria-label="Boucle"><svg class="ico" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg></button>
+      </div>
+      <div class="tr-time tnum" id="clock"></div>
+    </div>
+  </section>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  const tracks = ['Bach – Gavotte en rondeau', 'Suzuki 2 – Chœur des chasseurs', 'Accolay – Concerto en la mineur', 'Seitz – Concerto n° 2'];
+  const DURATION = 172;
+  const speeds = [25, 50, 60, 65, 70, 75, 80, 85, 90, 95, 100, 125, 150];
+  let markers = [{t: 11.64, name: 'intro'}, {t: 38.2, name: 'thème'}, {t: 71.8, name: 'couplet'}, {t: 112.3, name: 'reprise'}, {t: 150.1, name: 'coda'}];
+  let loop = {from: 1, to: 2}, loopOn = true, playing = false, editing = false;
+  let pos = 42.3, pass = 3, pitch = -1, speedIndex = 4;
+  const $ = id => document.getElementById(id);
+  const PLAY = '<svg class="ico" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>', PAUSE = '<svg class="ico" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>';
+
+  const end = i => i + 1 < markers.length ? markers[i + 1].t : DURATION;
+  const loopStart = () => markers[loop.from].t, loopEnd = () => end(loop.to);
+  const fmt = s => { s = Math.max(0, s); const m = Math.floor(s / 60), r = Math.floor(s % 60); return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`; };
+  const cents = s => `.${String(Math.floor((s % 1) * 100)).padStart(2, '0')}`;
+
+  function openTrack(i) { $('p-title').textContent = tracks[i]; $('lists').className = 'screen away-left'; $('player').className = 'screen'; render(); }
+  function closeTrack() { $('lists').className = 'screen'; $('player').className = 'screen away-right'; playing = false; $('play').innerHTML = PLAY; }
+
+  // Toucher une ligne : boucle de ce marqueur au suivant ; une autre ligne étend ; une ligne déjà dans une boucle large y revient seule.
+  function onMarker(i) {
+    if (editing) return;
+    const single = loop.from === loop.to;
+    if (!loopOn || (single && loop.from === i) || (!single && i >= loop.from && i <= loop.to)) loop = {from: i, to: i};
+    else loop = {from: Math.min(loop.from, i), to: Math.max(loop.to, i)};
+    loopOn = true; pos = loopStart(); pass = 1; render();
+  }
+  function toggleLoop() { loopOn = !loopOn; render(); }
+  function togglePlay() { playing = !playing; $('play').innerHTML = playing ? PAUSE : PLAY; }
+  function seek(t) { pos = Math.min(DURATION, Math.max(0, t)); render(); }
+  function toggleEdit() { editing = !editing; render(); }
+  function addMarker() {
+    markers.push({t: pos, name: `marker ${markers.length + 1}`}); markers.sort((a, b) => a.t - b.t);
+    loop = {from: 0, to: 0}; loopOn = false; toast(`Marqueur posé à ${fmt(pos)}`); render();
+  }
+  function removeMarker(i) { if (markers.length < 2) return; markers.splice(i, 1); loop = {from: 0, to: 0}; loopOn = false; render(); }
+
+  // --- cadrans ---
+  function arc(svg, fraction) {
+    const cx = 38, cy = 38, r = 30, a0 = Math.PI * 0.8, a1 = Math.PI * 2.2;
+    const p = a => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    const path = (from, to, color, w) => { const [x0, y0] = p(from), [x1, y1] = p(to);
+      return `<path d="M${x0} ${y0} A${r} ${r} 0 ${to - from > Math.PI ? 1 : 0} 1 ${x1} ${y1}" stroke="${color}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`; };
+    const av = a0 + (a1 - a0) * fraction, [dx, dy] = p(av);
+    svg.innerHTML = path(a0, a1, 'var(--track)', 4) + path(a0, Math.max(a0 + 0.01, av), 'var(--accent)', 4) + `<circle cx="${dx}" cy="${dy}" r="5" fill="var(--accent)"/>`;
+  }
+  function setupGauge(el, step, reset) {
+    let startY = null, moved = 0, lastTap = 0;
+    el.addEventListener('pointerdown', e => { startY = e.clientY; moved = 0; el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointermove', e => {
+      if (startY === null) return;
+      const d = Math.trunc((startY - e.clientY) / 18);
+      if (d !== 0) { step(d); startY -= d * 18; moved += Math.abs(d); }
+    });
+    el.addEventListener('pointerup', e => {
+      if (startY === null) return; startY = null;
+      if (moved) return;
+      const now = Date.now();
+      if (now - lastTap < 300) { reset(); lastTap = 0; return; }
+      lastTap = now;
+      const r = el.getBoundingClientRect(); step(e.clientX < r.left + r.width / 2 ? -1 : 1);
+    });
+  }
+  setupGauge($('g-pitch'), d => { pitch = Math.max(-12, Math.min(12, pitch + d)); render(); }, () => { pitch = 0; render(); toast('Ton remis à 0'); });
+  setupGauge($('g-speed'), d => { speedIndex = Math.max(0, Math.min(speeds.length - 1, speedIndex + d)); render(); }, () => { speedIndex = speeds.indexOf(100); render(); toast('Vitesse remise à 100 %'); });
+
+  // --- rendu ---
+  function render() {
+    const gp = $('g-pitch'), gs = $('g-speed');
+    arc(gp.querySelector('svg'), (pitch + 12) / 24);
+    gp.querySelector('.val').textContent = (pitch > 0 ? '+' : pitch < 0 ? '−' : '') + Math.abs(pitch);
+    gp.querySelector('.val').classList.toggle('changed', pitch !== 0);
+    arc(gs.querySelector('svg'), speedIndex / (speeds.length - 1));
+    gs.querySelector('.val').innerHTML = `${speeds[speedIndex]}<small style="font-size:12px"> %</small>`;
+    gs.querySelector('.val').classList.toggle('changed', speeds[speedIndex] !== 100);
+
+    $('time').innerHTML = `${fmt(pos)}<small>${cents(pos).slice(0, 2)}</small>`;
+    $('loop-range').textContent = loopOn ? `${fmt(loopStart())} · ${fmt(loopEnd())}` : 'boucle coupée';
+    $('pass').textContent = loopOn ? `${pass}ᵉ passage` : '';
+    $('clock').textContent = `${fmt(pos)} / ${fmt(DURATION)}`;
+    $('loopbtn').classList.toggle('on', loopOn);
+    $('edit-btn').classList.toggle('on', editing);
+    $('edit-btn').textContent = editing ? 'Terminé' : '✎';
+
+    const box = $('markers'); box.innerHTML = '';
+    markers.forEach((m, i) => {
+      const row = document.createElement(editing ? 'div' : 'button');
+      row.className = 'mk' + (loopOn && i >= loop.from && i <= loop.to ? ' in' : '');
+      const head = `<span class="num">${i + 1}</span><span class="tm tnum">${fmt(m.t)}<small>${cents(m.t)}</small></span>`;
+      if (editing) {
+        row.innerHTML = head + `<input value="${m.name}"><button class="del" aria-label="Supprimer">✕</button>`;
+        row.querySelector('input').onchange = e => m.name = e.target.value;
+        row.querySelector('.del').onclick = () => removeMarker(i);
+      } else {
+        row.innerHTML = head + `<span class="nm">${m.name}</span>`;
+        row.onclick = () => onMarker(i);
+      }
+      box.append(row);
+    });
+    drawWave();
+  }
+
+  const bars = Array.from({length: 140}, (_, i) => 0.2 + 0.65 * Math.abs(Math.sin(i * 0.31) * Math.cos(i * 0.07)) + Math.random() * 0.12);
+  function drawBars(g, look, W, H, top, x, C, acc2) {
+    const bw = W / bars.length, mid = top + (H - top) / 2, played = x(pos);
+    if (look === 'staff') {            // portée : 5 lignes fines et un trait d'encre
+      g.strokeStyle = C.wave; g.lineWidth = 1;
+      for (let k = 0; k < 5; k++) { const y = top + 8 + k * (H - top - 16) / 4; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+      [[0, played, C.played], [played, W, C.wave]].forEach(([a, z, col]) => {
+        g.beginPath(); g.fillStyle = col;
+        bars.forEach((v, i) => { const px = i * bw; if (px < a || px > z) return; const h = v * (H - top) * 0.42; g.rect(px + bw * 0.35, mid - h, bw * 0.3, h * 2); });
+        g.fill();
+      });
+      return;
+    }
+    if (look === 'glow') {             // néon : dégradé et halo
+      const grad = g.createLinearGradient(0, 0, W, 0); grad.addColorStop(0, C.acc); grad.addColorStop(1, acc2);
+      g.shadowColor = C.acc; g.shadowBlur = 10;
+      bars.forEach((v, i) => { const h = v * (H - top) * 0.8; g.fillStyle = i * bw < played ? grad : C.wave; if (i * bw >= played) g.shadowBlur = 0;
+        g.fillRect(i * bw + 1, mid - h / 2, bw - 2, h); });
+      g.shadowBlur = 0; return;
+    }
+    if (look === 'round') {            // luthier : barres arrondies
+      bars.forEach((v, i) => { const h = v * (H - top) * 0.75, w = Math.max(1, bw - 2.5); g.fillStyle = i * bw < played ? C.played : C.wave;
+        g.beginPath(); g.roundRect(i * bw + 1, mid - h / 2, w, h, w / 2); g.fill(); });
+      return;
+    }
+    if (look === 'lines') {            // signal : traits d'un pixel, denses
+      bars.forEach((v, i) => { const h = v * (H - top) * 0.9; g.fillStyle = i * bw < played ? C.played : C.wave;
+        g.fillRect(i * bw, mid - h / 2, 1, h); g.fillRect(i * bw + bw / 2, mid - h * 0.35, 1, h * 0.7); });
+      return;
+    }
+    bars.forEach((v, i) => { g.fillStyle = i * bw < played ? C.played : C.wave; const h = v * (H - top) * 0.8; g.fillRect(i * bw + 0.5, mid - h / 2, bw - 1, h); });
+  }
+  function drawWave() {
+    const c = $('wave'), r = c.getBoundingClientRect(); if (!r.width) return;
+    const dpr = devicePixelRatio || 1; c.width = r.width * dpr; c.height = r.height * dpr;
+    const g = c.getContext('2d'); g.scale(dpr, dpr);
+    const W = r.width, H = r.height, top = 26, x = t => t / DURATION * W;
+    const css = n => getComputedStyle(document.querySelector('.phone')).getPropertyValue(n).trim();
+    const look = css('--wave-style'), acc2 = css('--accent2') || css('--accent');
+    const C = {acc: css('--accent'), soft: css('--accent-soft'), deep: css('--accent-deep'), line: css('--accent-line'), wave: css('--wave'), played: css('--wave-played')};
+    if (loopOn) { g.fillStyle = C.soft; g.fillRect(x(loopStart()), top, x(loopEnd()) - x(loopStart()), H - top); }
+    const bw = W / bars.length;
+    drawBars(g, look, W, H, top, x, C, acc2);
+    markers.forEach((m, i) => {
+      const mx = x(m.t);
+      g.fillStyle = C.line; g.fillRect(mx - 0.5, 18, 1, H - 18);
+      g.beginPath(); g.arc(mx, 11, 9, 0, Math.PI * 2); g.fillStyle = C.deep; g.fill(); g.strokeStyle = C.line; g.stroke();
+      g.fillStyle = C.acc; g.font = 'bold 10px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(i + 1, mx, 11.5);
+    });
+    g.fillStyle = C.acc; g.fillRect(x(pos) - 1, top, 2, H - top);
+  }
+  $('wave').addEventListener('pointerdown', e => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * DURATION); });
+
+  setInterval(() => {
+    if (!playing) return;
+    pos += 0.1 * speeds[speedIndex] / 100;
+    if (loopOn && pos >= loopEnd()) { pos = loopStart(); pass++; const p = $('pass'); p.classList.remove('pulse'); void p.offsetWidth; p.classList.add('pulse'); }
+    if (pos >= DURATION) pos = 0;
+    $('time').innerHTML = `${fmt(pos)}<small>${cents(pos).slice(0, 2)}</small>`;
+    $('pass').textContent = `${pass}ᵉ passage`;
+    $('clock').textContent = `${fmt(pos)} / ${fmt(DURATION)}`;
+    drawWave();
+  }, 100);
+  let toastTimer;
+  function toast(text) { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1400); }
+  addEventListener('resize', drawWave);
+  function setStyle(name) {
+    document.querySelector('.phone').dataset.style = name;
+    document.querySelectorAll('#switch button').forEach(b => b.classList.toggle('on', b.dataset.s === name));
+    render();
+  }
+  document.querySelectorAll('#switch button').forEach(b => b.onclick = () => setStyle(b.dataset.s));
+  setStyle('neon');
+</script>
+</body>
+</html>
