@@ -3,7 +3,8 @@
 
 import { createLibrary, currentList, addList, renameList, deleteList, selectList,
   addTrackToList, removeTrackFromList, updateTrack, matchesTrack, trackId,
-  setLastTrack, lastTrack } from './library.js';
+  setLastTrack, lastTrack, stampLists } from './library.js';
+import { initSync, enableSync, disableSync, libraryChanged, isSyncOn } from './sync.js';
 import * as storage from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -18,16 +19,22 @@ const missingTrackIds = new Set(); // morceaux dont le fichier est à retrouver
 let openInPlayer = async () => false;
 let showMessage = () => {};
 let showPlayer = () => {};
+let onLibraryReplaced = () => {};
 
 // onOpen(file, track) charge le morceau dans le lecteur et renvoie true si
 // ça a marché. onMessage(text) affiche un message.
 // onShowPlayer() revient au lecteur sans recharger le morceau.
-export async function initLists({ onOpen, onMessage, onShowPlayer }) {
+// onTrackReplaced(track) : la synchro a apporté une autre version d'un morceau.
+export async function initLists({ onOpen, onMessage, onShowPlayer, onTrackReplaced }) {
   openInPlayer = onOpen;
   showMessage = onMessage;
   showPlayer = onShowPlayer;
+  onLibraryReplaced = onTrackReplaced;
   $('resume').addEventListener('click', onResume);
   $('edit-tracks').addEventListener('click', () => { editingTracks = !editingTracks; render(); });
+  $('sync-button').addEventListener('click', toggleSyncPanel);
+  $('sync-form').addEventListener('submit', onSyncSubmit);
+  $('sync-off').addEventListener('click', disableSync);
   $('rename-list').addEventListener('click', onRenameList);
   $('delete-list').addEventListener('click', onDeleteList);
   $('add-track').addEventListener('click', onAddTrack);
@@ -38,6 +45,7 @@ export async function initLists({ onOpen, onMessage, onShowPlayer }) {
     showMessage("La mémoire du navigateur n'est pas disponible : rien ne sera gardé après fermeture.");
   }
   render();
+  initSync({ getLibrary: () => library, setLibrary: onSyncedLibrary, onStatus: showSyncStatus });
 }
 
 // Appelé par app.js au retour sur l'écran des listes.
@@ -213,11 +221,54 @@ async function pickFile() {
 
 // --- Mémoire ---
 
-// Remplace la bibliothèque, l'enregistre, et redessine (sauf `quiet`).
+// Remplace la bibliothèque, l'enregistre, prévient la synchro, et
+// redessine (sauf `quiet`).
 function changeLibrary(newLibrary, { quiet = false } = {}) {
-  library = newLibrary;
+  library = stampLists(library, newLibrary, Date.now());
   if (storageWorks) storage.saveLibrary(library).catch(storageFailed);
+  libraryChanged();
   if (!quiet) render();
+}
+
+// La synchro a fusionné la bibliothèque : on la garde sans relancer
+// d'envoi, et le lecteur reprend le morceau ouvert s'il a changé.
+function onSyncedLibrary(merged) {
+  const before = library.tracks[openTrackId];
+  library = merged;
+  if (storageWorks) storage.saveLibrary(library).catch(storageFailed);
+  render();
+  const after = library.tracks[openTrackId];
+  if (after && after !== before) onLibraryReplaced(after);
+}
+
+// --- Synchronisation (panneau du nuage) ---
+
+function toggleSyncPanel() {
+  const panel = $('sync-panel');
+  panel.hidden = !panel.hidden;
+  $('sync-button').setAttribute('aria-expanded', String(!panel.hidden));
+}
+
+async function onSyncSubmit(event) {
+  event.preventDefault();
+  const token = $('sync-token').value.trim();
+  if (!token) return;
+  $('sync-token').value = '';
+  await enableSync(token);
+}
+
+const SYNC_TEXT = {
+  off: 'Synchro coupée : tout reste sur cet appareil.',
+  busy: 'Synchronisation…',
+};
+
+function showSyncStatus({ state, message, lastSync }) {
+  $('sync-button').dataset.state = state;
+  const time = lastSync?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const text = state === 'ok' ? `À jour. Dernière synchro : ${time}.` : message || SYNC_TEXT[state] || '';
+  $('sync-status').textContent = text;
+  $('sync-off').hidden = !isSyncOn();
+  $('sync-token').placeholder = isSyncOn() ? 'Jeton enregistré (en coller un autre pour le changer)' : 'Jeton GitHub';
 }
 
 async function rememberHandle(id, handle) {

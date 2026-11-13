@@ -109,6 +109,34 @@ input {
 
 /* ---------- Écran Listes ---------- */
 
+/* Nuage de synchro : gris barré (coupée), couleur (à jour), pulse (envoi),
+   point orange (hors ligne ou erreur). */
+.sync-button { position: relative; }
+.sync-button[data-state="off"] { color: var(--text-dim); opacity: 0.6; }
+.sync-button[data-state="off"]::after { content: ""; position: absolute; width: 26px; height: 2px; background: currentColor; transform: rotate(-35deg); }
+.sync-button[data-state="ok"] { color: var(--accent); filter: drop-shadow(0 0 6px rgba(255, 79, 216, 0.7)); }
+.sync-button[data-state="busy"] { color: var(--accent); animation: breathe 1s ease-in-out infinite alternate; }
+.sync-button[data-state="offline"], .sync-button[data-state="error"] { color: var(--text-dim); }
+.sync-button[data-state="offline"]::after, .sync-button[data-state="error"]::after {
+  content: ""; position: absolute; top: 10px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2);
+}
+@keyframes breathe { to { opacity: 0.35; } }
+
+.sync-panel {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-bottom: 12px; padding: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  backdrop-filter: blur(14px);
+}
+.sync-panel h2 { margin: 0; font-size: 17px; }
+.sync-panel p { margin: 0; }
+.sync-panel a { color: var(--accent); }
+.sync-form { display: flex; gap: 8px; }
+.sync-form input { flex: 1; min-width: 0; min-height: 44px; }
+.sync-form button { padding: 0 16px; border-radius: 12px; background: var(--gradient); color: var(--background); font-weight: 700; }
+.sync-off { align-self: flex-start; padding: 0 12px; border-radius: 12px; color: var(--error); background: rgba(255, 107, 107, 0.1); }
+
+.home-head { display: flex; align-items: center; justify-content: space-between; }
 .app-title {
   margin: 20px 8px 14px;
   font-size: 34px;

@@ -22,13 +22,31 @@
     <symbol id="i-loop" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol>
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></symbol>
   </svg>
 
   <p id="message" class="message" role="alert" hidden></p>
 
   <!-- ===== Écran Listes ===== -->
   <section id="lists-screen" class="screen">
-    <h1 class="app-title">Ritornello</h1>
+    <header class="home-head">
+      <h1 class="app-title">Ritornello</h1>
+      <button id="sync-button" class="icon-button sync-button" data-state="off" aria-label="Synchronisation entre appareils" aria-expanded="false">
+        <svg class="ico"><use href="#i-cloud"/></svg>
+      </button>
+    </header>
+
+    <section id="sync-panel" class="sync-panel" hidden>
+      <h2>Synchronisation</h2>
+      <p class="dim small">Facultative. Retrouvez listes et marqueurs sur vos autres appareils, grâce à un gist secret sur votre compte GitHub.</p>
+      <form id="sync-form" class="sync-form">
+        <input id="sync-token" type="password" autocomplete="off" placeholder="Jeton GitHub" aria-label="Jeton GitHub">
+        <button id="sync-save" type="submit">OK</button>
+      </form>
+      <a class="small" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">→ Créer un jeton (permission « Gists » en lecture et écriture)</a>
+      <p id="sync-status" class="small" role="status"></p>
+      <button id="sync-off" class="sync-off" hidden>Couper la synchro sur cet appareil</button>
+    </section>
 
     <button id="resume" class="resume" hidden>
       <span class="disc"><svg class="ico"><use href="#i-play"/></svg></span>

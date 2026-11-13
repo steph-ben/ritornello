@@ -72,7 +72,7 @@ renderMarkers();
 renderTime();
 // Après un rechargement, on repart de l'écran Listes.
 if (history.state?.player) history.replaceState(null, '');
-initLists({ onOpen: openFile, onMessage: showMessage, onShowPlayer: showPlayerScreen });
+initLists({ onOpen: openFile, onMessage: showMessage, onShowPlayer: showPlayerScreen, onTrackReplaced });
 
 // --- Écrans ---
 
@@ -124,6 +124,21 @@ async function openFile(file, track) {
   renderMarkers();
   renderTime();
   return true;
+}
+
+// La synchro a apporté une autre version du morceau ouvert (modifié sur un
+// autre appareil) : on reprend ses réglages, sans recharger le son.
+function onTrackReplaced(track) {
+  if (track.id !== currentTrackId) return;
+  ({ markers, loop, loopActive, speed, semitones } = track);
+  player.setSpeed(speed);
+  player.setSemitones(semitones);
+  applyLoop();
+  openMarkerId = null;
+  lastTappedId = null;
+  renderSettings();
+  renderMarkers();
+  renderTime();
 }
 
 // Garde les réglages du morceau ouvert (listes, mémoire).
