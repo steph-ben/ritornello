@@ -68,8 +68,11 @@ async function openFile(file, track) {
     stopPlayback();
     duration = audio.duration;
     peaks = computePeaks(audio.samples, PEAK_COUNT);
-  } catch {
-    showMessage(`Impossible de lire ${file.name} : format non reconnu, ou fichier trop long pour la mémoire.`);
+  } catch (error) {
+    // Le détail de l'erreur dit quelle étape a échoué (lecture du fichier,
+    // démarrage du moteur audio ou décodage).
+    console.error(error);
+    showMessage(`Impossible de lire ${file.name} : format non reconnu, ou fichier trop long pour la mémoire. (${error?.name}: ${error?.message})`);
     return false;
   }
   currentTrackId = track.id;
