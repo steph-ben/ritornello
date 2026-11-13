@@ -1,1 +1,63 @@
-/* Styles de l'accordeur (tuner.js). */
+/* Styles de l'accordeur (tuner.js). Lisible à un mètre, sur un pupitre. */
+
+#tuner-screen { --in-tune: #4ade80; }
+
+.tuner-title { flex: 1; font-size: 20px; font-weight: 600; margin: 0; }
+
+.tuner-switch { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2px; }
+.tuner-switch button { padding: 0 12px; border-radius: 10px; color: var(--text-dim); font-weight: 600; }
+.tuner-switch button[aria-pressed="true"] { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.tuner-middle { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px; min-height: 0; }
+.tuner-note { text-align: center; font-size: 88px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.tuner-cents { text-align: center; font-size: 28px; font-weight: 600; min-height: 34px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+.tuner-gauge {
+  position: relative;
+  height: 56px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+}
+/* Zone « juste » au centre : ±5 cents sur une jauge de ±50. */
+.tuner-zone { position: absolute; top: 0; bottom: 0; left: 45%; width: 10%; background: var(--accent-soft); }
+.tuner-needle {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 50%;
+  width: 10px;
+  margin-left: -5px;
+  border-radius: 5px;
+  background: var(--gradient);
+  box-shadow: var(--glow);
+  transition: left 0.12s linear;
+}
+.tuner-gauge.in-tune .tuner-zone { background: rgba(74, 222, 128, 0.25); }
+.tuner-gauge.in-tune .tuner-needle { background: var(--in-tune); box-shadow: 0 0 28px var(--in-tune); }
+#tuner-screen:has(.tuner-gauge.in-tune) .tuner-note { color: var(--in-tune); }
+
+.tuner-strings { display: flex; gap: 8px; padding: 12px 0; }
+.tuner-string {
+  flex: 1;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-dim);
+}
+.tuner-string-name { font-size: 20px; font-weight: 600; }
+.tuner-string-octave { font-size: 13px; }
+.tuner-string.heard { color: var(--text); border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--glow); }
+
+.tuner-reference { display: flex; align-items: center; justify-content: center; gap: 16px; padding-bottom: 16px; }
+.tuner-reference-value { min-width: 140px; text-align: center; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tuner-step { font-size: 28px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--accent); }
+
+.tuner-error { margin: 0 0 16px; padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--error); color: var(--error); text-align: center; }
+.tuner-error[hidden] { display: none; }
