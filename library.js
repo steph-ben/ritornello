@@ -56,6 +56,17 @@ export function updateTrack(lib, id, changes, now) {
   return { ...lib, tracks: { ...lib.tracks, [id]: track } };
 }
 
+// Le dernier morceau ouvert, pour « Reprendre ».
+export function setLastTrack(lib, id) {
+  return { ...lib, lastTrackId: id };
+}
+
+// Le dernier morceau ouvert, ou null s'il n'est plus dans aucune liste.
+export function lastTrack(lib) {
+  const inAList = lib.lists.some(list => list.trackIds.includes(lib.lastTrackId));
+  return inAList ? lib.tracks[lib.lastTrackId] : null;
+}
+
 // Vrai si le fichier choisi est bien celui du morceau.
 export function matchesTrack(track, file) {
   return track.name === file.name && track.size === file.size;

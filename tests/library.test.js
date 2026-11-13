@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLibrary, trackId, addList, renameList, deleteList, selectList,
   currentList, addTrackToList, removeTrackFromList, updateTrack,
-  matchesTrack } from '../library.js';
+  matchesTrack, setLastTrack, lastTrack } from '../library.js';
 
 const BOURREE = { name: 'Bourrée.mp3', size: 1234 };
 
@@ -103,4 +103,15 @@ test('functions do not modify their arguments', () => {
   addTrackToList(lib, lib.currentListId, BOURREE, 1);
   renameList(lib, lib.currentListId, 'X');
   assert.deepEqual(lib, copy);
+});
+
+test('lastTrack returns the last opened track, or null', () => {
+  let lib = createLibrary();
+  assert.equal(lastTrack(lib), null);
+  lib = addTrackToList(lib, currentList(lib).id, BOURREE, 1);
+  const id = trackId(BOURREE.name, BOURREE.size);
+  lib = setLastTrack(lib, id);
+  assert.equal(lastTrack(lib).name, 'Bourrée.mp3');
+  lib = removeTrackFromList(lib, currentList(lib).id, id);
+  assert.equal(lastTrack(lib), null);
 });
