@@ -1,8 +1,9 @@
-// Les listes de morceaux, sous le lecteur, et leur mémoire.
+// L'écran des listes de morceaux, et leur mémoire.
 // Ouvrir un morceau passe par `openInPlayer`, fourni par app.js.
 
 import { createLibrary, currentList, addList, renameList, deleteList, selectList,
-  addTrackToList, removeTrackFromList, updateTrack, matchesTrack, trackId } from './library.js';
+  addTrackToList, removeTrackFromList, updateTrack, matchesTrack, trackId,
+  setLastTrack, lastTrack } from './library.js';
 import * as storage from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -10,18 +11,23 @@ const $ = id => document.getElementById(id);
 let library = createLibrary();
 let storageWorks = true;
 let openTrackId = null;          // le morceau chargé dans le lecteur
-let loading = false;             // un morceau est en train de se charger
+let loadingTrackId = null;       // le morceau en train de se charger
+let editingTracks = false;       // mode ✎ : retirer des morceaux
+let listMenuOpen = false;        // menu Renommer / Supprimer de la liste active
 const missingTrackIds = new Set(); // morceaux dont le fichier est à retrouver
 let openInPlayer = async () => false;
 let showMessage = () => {};
+let showPlayer = () => {};
 
 // onOpen(file, track) charge le morceau dans le lecteur et renvoie true si
 // ça a marché. onMessage(text) affiche un message.
-export async function initLists({ onOpen, onMessage }) {
+// onShowPlayer() revient au lecteur sans recharger le morceau.
+export async function initLists({ onOpen, onMessage, onShowPlayer }) {
   openInPlayer = onOpen;
   showMessage = onMessage;
-  $('list-select').addEventListener('change', event => changeLibrary(selectList(library, event.target.value)));
-  $('new-list').addEventListener('click', onNewList);
+  showPlayer = onShowPlayer;
+  $('resume').addEventListener('click', onResume);
+  $('edit-tracks').addEventListener('click', () => { editingTracks = !editingTracks; render(); });
   $('rename-list').addEventListener('click', onRenameList);
   $('delete-list').addEventListener('click', onDeleteList);
   $('add-track').addEventListener('click', onAddTrack);
@@ -31,6 +37,11 @@ export async function initLists({ onOpen, onMessage }) {
     storageWorks = false;
     showMessage("La mémoire du navigateur n'est pas disponible : rien ne sera gardé après fermeture.");
   }
+  render();
+}
+
+// Appelé par app.js au retour sur l'écran des listes.
+export function refreshLists() {
   render();
 }
 
@@ -47,7 +58,7 @@ async function onAddTrack() {
   if (!picked) return;
   const { handle, file } = picked;
   const id = trackId(file.name, file.size);
-  await loadOnce(async () => {
+  await loadOnce(id, async () => {
     changeLibrary(addTrackToList(library, currentList(library).id, file, Date.now()));
     await rememberHandle(id, handle);
     await open(id, await freshFile(handle, file));
@@ -56,13 +67,15 @@ async function onAddTrack() {
 
 // Toucher un morceau : on rouvre son fichier sans repasser par le sélecteur.
 async function onTrackClick(id) {
-  await loadOnce(async () => {
+  if (missingTrackIds.has(id)) return onFindTrack(id);
+  if (id === openTrackId) return showPlayer(); // déjà chargé
+  await loadOnce(id, async () => {
     const file = await reopenFile(id);
     if (file) {
       await open(id, file);
     } else {
       missingTrackIds.add(id);
-      showMessage(`Fichier inaccessible (introuvable, ou accès refusé) : ${library.tracks[id].name}. Touchez « Retrouver le fichier ».`);
+      showMessage(`Fichier inaccessible (introuvable, ou accès refusé) : ${library.tracks[id].name}. Touchez-le de nouveau pour le retrouver.`);
     }
   });
 }
@@ -75,7 +88,7 @@ async function onFindTrack(id) {
     showMessage(`Ce n'est pas le même fichier : ${track.name} (${formatSize(track.size)}) attendu.`);
     return;
   }
-  await loadOnce(async () => {
+  await loadOnce(id, async () => {
     await rememberHandle(id, picked.handle);
     await open(id, await freshFile(picked.handle, picked.file));
   });
@@ -83,6 +96,22 @@ async function onFindTrack(id) {
 
 function onRemoveTrack(id) {
   changeLibrary(removeTrackFromList(library, currentList(library).id, id));
+}
+
+function onResume() {
+  const track = lastTrack(library);
+  if (track) onTrackClick(track.id);
+}
+
+// Toucher un onglet : choisir la liste ; retoucher l'onglet actif : menu.
+function onTabClick(listId) {
+  if (listId === currentList(library).id) {
+    listMenuOpen = !listMenuOpen;
+    render();
+  } else {
+    listMenuOpen = false;
+    changeLibrary(selectList(library, listId));
+  }
 }
 
 function onNewList() {
@@ -93,7 +122,9 @@ function onNewList() {
 function onRenameList() {
   const list = currentList(library);
   const name = prompt('Nouveau nom de la liste :', list.name)?.trim();
+  listMenuOpen = false;
   if (name) changeLibrary(renameList(library, list.id, name));
+  else render();
 }
 
 function onDeleteList() {
@@ -102,6 +133,8 @@ function onDeleteList() {
     showMessage('Impossible de supprimer la dernière liste.');
     return;
   }
+  listMenuOpen = false;
+  render();
   if (confirm(`Supprimer la liste « ${list.name} » ? Les morceaux ne sont pas effacés du téléphone.`)) {
     changeLibrary(deleteList(library, list.id));
   }
@@ -111,15 +144,14 @@ function onDeleteList() {
 
 // Un seul chargement à la fois : sur téléphone, lire et décoder un fichier
 // prend quelques secondes, et un deuxième toucher mélangerait deux morceaux.
-async function loadOnce(work) {
-  if (loading) return;
-  loading = true;
-  $('list-status').hidden = false;
+async function loadOnce(id, work) {
+  if (loadingTrackId) return;
+  loadingTrackId = id;
+  render();
   try {
     await work();
   } finally {
-    loading = false;
-    $('list-status').hidden = true;
+    loadingTrackId = null;
     render();
   }
 }
@@ -129,6 +161,7 @@ async function open(id, file) {
   if (!opened) return;
   openTrackId = id;
   missingTrackIds.delete(id);
+  changeLibrary(setLastTrack(library, id), { quiet: true });
   render();
 }
 
@@ -201,39 +234,72 @@ function storageFailed() {
 
 function render() {
   const list = currentList(library);
-  $('list-select').replaceChildren(...library.lists.map(l => {
-    const option = document.createElement('option');
-    option.value = l.id;
-    option.textContent = l.name;
-    option.selected = l.id === list.id;
-    return option;
-  }));
+
+  const resume = lastTrack(library);
+  $('resume').hidden = !resume;
+  if (resume) $('resume-name').textContent = resume.name;
+
+  const tabs = library.lists.map(l => tab(l.name, l.id === list.id, () => onTabClick(l.id)));
+  const newTab = tab('＋', false, onNewList);
+  newTab.setAttribute('aria-label', 'Nouvelle liste');
+  $('list-tabs').replaceChildren(...tabs, newTab);
+  $('list-menu').hidden = !listMenuOpen;
   $('delete-list').disabled = library.lists.length <= 1;
-  $('track-list').replaceChildren(...list.trackIds.map(id => trackItem(library.tracks[id])));
+
+  const count = list.trackIds.length;
+  $('list-count').textContent = count === 1 ? '1 morceau' : `${count} morceaux`;
+  $('edit-tracks').hidden = count === 0;
+  if (count === 0) editingTracks = false;
+  $('edit-tracks').setAttribute('aria-pressed', String(editingTracks));
+
+  const rows = list.trackIds.map(id => trackItem(library.tracks[id]));
+  if (count === 0) rows.push(emptyHint());
+  $('track-list').replaceChildren(...rows);
+}
+
+function tab(text, selected, onClick) {
+  const button = document.createElement('button');
+  button.className = 'tab';
+  button.setAttribute('role', 'tab');
+  button.setAttribute('aria-selected', String(selected));
+  button.textContent = text;
+  button.addEventListener('click', onClick);
+  return button;
 }
 
 function trackItem(track) {
   const item = document.createElement('li');
+  const missing = missingTrackIds.has(track.id);
   item.classList.toggle('current', track.id === openTrackId);
+  item.classList.toggle('missing', missing);
 
-  const name = document.createElement('button');
-  name.className = 'track-open';
+  const open = document.createElement('button');
+  open.className = 'track-open';
+  const name = document.createElement('span');
+  name.className = 'name';
   name.textContent = track.name;
-  name.addEventListener('click', () => onTrackClick(track.id));
-  item.append(name);
+  const hint = document.createElement('span');
+  hint.className = 'hint';
+  hint.textContent = track.id === loadingTrackId ? 'Chargement…' : missing ? 'à retrouver' : '›';
+  open.append(name, hint);
+  open.addEventListener('click', () => onTrackClick(track.id));
+  item.append(open);
 
-  if (missingTrackIds.has(track.id)) {
-    const find = document.createElement('button');
-    find.textContent = 'Retrouver le fichier';
-    find.addEventListener('click', () => onFindTrack(track.id));
-    item.append(find);
+  if (editingTracks) {
+    const remove = document.createElement('button');
+    remove.className = 'remove';
+    remove.textContent = '✕';
+    remove.setAttribute('aria-label', `Retirer ${track.name} de la liste`);
+    remove.addEventListener('click', () => onRemoveTrack(track.id));
+    item.append(remove);
   }
+  return item;
+}
 
-  const remove = document.createElement('button');
-  remove.textContent = '✕';
-  remove.setAttribute('aria-label', 'Retirer de la liste');
-  remove.addEventListener('click', () => onRemoveTrack(track.id));
-  item.append(remove);
+function emptyHint() {
+  const item = document.createElement('li');
+  item.className = 'empty';
+  item.textContent = 'Aucun morceau dans cette liste. Touchez ＋ pour en choisir un sur le téléphone (Proton Drive, Téléchargements…).';
   return item;
 }
 

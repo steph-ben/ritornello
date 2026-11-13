@@ -2,15 +2,18 @@
 // boucle) et waveform.js (barre de temps). Les listes sont dans lists.js.
 
 import * as player from './player.js';
-import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds,
-  positionAfterTick, stepSpeed, stepSemitones, formatTime } from './track.js';
-import { computePeaks, drawTimeline, timeAtX } from './waveform.js';
-import { initLists, saveTrackSettings } from './lists.js';
+import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds, tapLoop,
+  positionAfterTick, stepSpeed, stepSemitones, formatTime,
+  MIN_SPEED, MAX_SPEED, MAX_SEMITONES } from './track.js';
+import { computePeaks, drawTimeline, timeAtX, markerAtPoint } from './waveform.js';
+import { initLists, saveTrackSettings, refreshLists } from './lists.js';
 import { readFileBytes } from './readfile.js';
 
 const REFRESH_MS = 50;   // mise à jour de l'écran pendant la lecture
 const JUMP_SECONDS = 5;  // recul et avance
 const PEAK_COUNT = 800;  // barres de la forme d'onde
+const DRAG_STEP_PX = 18; // glisser sur un cadran : un pas tous les 18 px
+const DOUBLE_TAP_MS = 300;
 
 const $ = id => document.getElementById(id);
 const canvas = $('timeline');
@@ -22,29 +25,38 @@ let currentTrackId = null;
 let duration = 0;
 let peaks = null;
 let markers = [];
-let loop = null;          // { fromId, toId } : les deux marqueurs choisis
+let loop = null;          // { fromId, toId } ; toId null = fin du morceau
 let loopActive = false;
 let speed = 100;
 let semitones = 0;
 let refreshTimer = null;
 let wakeLock = null;
+let editingMarkers = false;
+let passCount = 1;        // passages dans la boucle depuis son dernier changement
+let lastTickTime = 0;
 
 playButton.addEventListener('click', togglePlay);
 $('go-start').addEventListener('click', () => seekTo(0));
 $('go-back').addEventListener('click', () => seekTo(player.getCurrentTime() - JUMP_SECONDS));
 $('go-forward').addEventListener('click', () => seekTo(player.getCurrentTime() + JUMP_SECONDS));
-$('pitch-down').addEventListener('click', () => changeSemitones(-1));
-$('pitch-up').addEventListener('click', () => changeSemitones(1));
-$('speed-down').addEventListener('click', () => changeSpeed(-1));
-$('speed-up').addEventListener('click', () => changeSpeed(1));
+setupDial($('pitch-dial'), changeSemitones, () => changeSemitones(-semitones));
+setupDial($('speed-dial'), changeSpeed, () => changeSpeed((100 - speed) / 5));
 $('add-marker').addEventListener('click', onAddMarker);
-$('loop-from').addEventListener('change', onLoopSelect);
-$('loop-to').addEventListener('change', onLoopSelect);
+$('edit-markers').addEventListener('click', toggleEditMarkers);
 $('loop-button').addEventListener('click', toggleLoop);
+$('go-lists').addEventListener('click', () => {
+  if (history.state?.player) history.back(); // passe par popstate
+  else showListsScreen();
+});
+$('message').addEventListener('click', hideMessage);
 canvas.addEventListener('pointerdown', event => {
-  if (duration > 0) seekTo(timeAtX(canvas, event.offsetX, duration));
+  if (duration <= 0) return;
+  const markerId = markerAtPoint(canvas, event.offsetX, event.offsetY, markers, duration);
+  if (markerId !== null) onMarkerTap(markerId);
+  else seekTo(timeAtX(canvas, event.offsetX, duration));
 });
 window.addEventListener('resize', renderTime);
+window.addEventListener('popstate', () => { if (!history.state?.player) showListsScreen(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && player.isPlaying()) keepScreenOn();
 });
@@ -57,7 +69,27 @@ player.onEnded(() => {
 renderSettings();
 renderMarkers();
 renderTime();
-initLists({ onOpen: openFile, onMessage: showMessage });
+// Après un rechargement, on repart de l'écran Listes.
+if (history.state?.player) history.replaceState(null, '');
+initLists({ onOpen: openFile, onMessage: showMessage, onShowPlayer: showPlayerScreen });
+
+// --- Écrans ---
+
+function showPlayerScreen() {
+  if (!history.state?.player) history.pushState({ player: true }, '');
+  $('lists-screen').hidden = true;
+  $('player-screen').hidden = false;
+  renderTime(); // le canvas n'a sa taille qu'une fois visible
+}
+
+// Retour aux listes (bouton ‹ ou retour d'Android) : la lecture s'arrête.
+function showListsScreen() {
+  stopPlayback();
+  renderTime();
+  $('player-screen').hidden = true;
+  $('lists-screen').hidden = false;
+  refreshLists();
+}
 
 // --- Morceau ---
 
@@ -82,7 +114,10 @@ async function openFile(file, track) {
   player.setSemitones(semitones);
   applyLoop();
   $('track-name').textContent = file.name;
+  editingMarkers = false;
+  passCount = 1;
   hideMessage();
+  showPlayerScreen();
   renderSettings();
   renderMarkers();
   renderTime();
@@ -116,17 +151,30 @@ function stopPlayback() {
 
 function seekTo(seconds) {
   player.seek(seconds);
+  lastTickTime = player.getCurrentTime();
   renderTime();
 }
 
 // Appelé toutes les 50 ms pendant la lecture. Le moteur boucle tout seul ;
 // ce test sert quand on déplace la lecture après la fin de la boucle.
+// Un saut en arrière pendant la boucle, c'est un nouveau passage.
 function onTick() {
+  const now = player.getCurrentTime();
   if (loopActive) {
-    const jump = positionAfterTick(player.getCurrentTime(), loopBounds(markers, loop));
+    const jump = positionAfterTick(now, currentBounds());
     if (jump !== null) player.seek(jump);
+    if (jump !== null || now < lastTickTime - 0.3) countPass();
   }
+  lastTickTime = player.getCurrentTime();
   renderTime();
+}
+
+function countPass() {
+  passCount += 1;
+  const pass = $('counter-pass');
+  pass.classList.remove('pulse');
+  void pass.offsetWidth; // relance l'animation
+  pass.classList.add('pulse');
 }
 
 function changeSpeed(direction) {
@@ -169,17 +217,26 @@ function onRenameMarker(id, name) {
   renderMarkers();
 }
 
-function onLoopSelect() {
-  loop = { fromId: Number($('loop-from').value), toId: Number($('loop-to').value) };
-  if (!loopBounds(markers, loop)) loopActive = false;
+// Toucher un marqueur (ligne ou pastille) : boucle sa section, ou l'étend.
+function onMarkerTap(id) {
+  loop = tapLoop(markers, loop, loopActive, id);
+  loopActive = currentBounds() !== null;
+  passCount = 1;
   applyLoop();
+  if (loopActive) seekTo(currentBounds().start);
   rememberSettings();
   renderMarkers();
   renderTime();
 }
 
+function toggleEditMarkers() {
+  editingMarkers = !editingMarkers;
+  renderMarkers();
+}
+
 function toggleLoop() {
-  loopActive = !loopActive && loopBounds(markers, loop) !== null;
+  loopActive = !loopActive && currentBounds() !== null;
+  passCount = 1;
   applyLoop();
   rememberSettings();
   renderMarkers();
@@ -187,18 +244,21 @@ function toggleLoop() {
 }
 
 // Si un marqueur de la boucle a disparu, la boucle se coupe. Ensuite, on
-// propose par défaut les deux premiers marqueurs.
+// propose par défaut la première section.
 function updateLoopAfterMarkerChange() {
-  const loopStillValid = loopBounds(markers, loop) !== null;
-  if (!loopStillValid) {
+  if (currentBounds() === null) {
     loopActive = false;
-    loop = markers.length >= 2 ? { fromId: markers[0].id, toId: markers[1].id } : null;
+    loop = markers.length ? tapLoop(markers, null, false, markers[0].id) : null;
   }
+}
+
+function currentBounds() {
+  return loopBounds(markers, loop, duration);
 }
 
 // Transmet la boucle au moteur audio, qui boucle tout seul.
 function applyLoop() {
-  player.setLoop(loopActive ? loopBounds(markers, loop) : null);
+  player.setLoop(loopActive ? currentBounds() : null);
 }
 
 // --- Écran allumé pendant la lecture ---
@@ -223,81 +283,134 @@ function releaseScreen() {
 // Ce qui bouge pendant la lecture : compteurs, canvas, bouton lecture.
 function renderTime() {
   const currentTime = player.getCurrentTime();
-  const bounds = loopActive ? loopBounds(markers, loop) : null;
-  $('counter-time').textContent = formatTime(currentTime);
-  $('counter-loop').hidden = !bounds;
-  if (bounds) $('counter-loop').textContent = `${formatTime(bounds.start)} ⇄ ${formatTime(bounds.end)}`;
+  const bounds = loopActive ? currentBounds() : null;
+  $('counter-time').innerHTML = `${formatTime(currentTime)}<small>${hundredths(currentTime)}</small>`;
+  $('counter-loop').textContent = bounds ? `${formatTime(bounds.start)} · ${formatTime(bounds.end)}` : '';
+  $('counter-pass').textContent = bounds ? (passCount === 1 ? '1er passage' : `${passCount}e passage`) : '';
   $('clock').textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
 
   const playing = player.isPlaying();
-  playButton.textContent = playing ? '⏸' : '▶';
+  playButton.innerHTML = `<svg class="ico"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`;
   playButton.setAttribute('aria-label', playing ? 'Pause' : 'Lecture');
   playButton.disabled = duration === 0;
   transportButtons.forEach(button => { button.disabled = duration === 0; });
 
-  drawTimeline(canvas, { peaks, duration, currentTime, markers, bounds });
+  if (!$('player-screen').hidden) drawTimeline(canvas, { peaks, duration, currentTime, markers, bounds });
 }
 
 function renderSettings() {
-  $('pitch-value').textContent = semitones > 0 ? `+${semitones}` : String(semitones);
+  $('pitch-value').textContent = semitones > 0 ? `+${semitones}` : semitones < 0 ? `−${-semitones}` : '0';
+  $('pitch-value').classList.toggle('changed', semitones !== 0);
+  drawArc($('pitch-dial'), (semitones + MAX_SEMITONES) / (2 * MAX_SEMITONES));
   $('speed-value').textContent = `${speed} %`;
+  $('speed-value').classList.toggle('changed', speed !== 100);
+  drawArc($('speed-dial'), (speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED));
 }
 
 // Ce qui change seulement quand on touche aux marqueurs ou à la boucle.
 function renderMarkers() {
-  const list = $('marker-list');
-  list.replaceChildren(...markers.map(markerItem));
-
-  fillLoopSelect($('loop-from'), loop?.fromId);
-  fillLoopSelect($('loop-to'), loop?.toId);
+  const bounds = loopActive ? currentBounds() : null;
+  $('marker-list').replaceChildren(...markers.map(marker => markerItem(marker, bounds)));
+  $('edit-markers').setAttribute('aria-pressed', String(editingMarkers));
+  $('edit-markers').hidden = markers.length === 0 && !editingMarkers;
 
   const loopButton = $('loop-button');
-  loopButton.disabled = loopBounds(markers, loop) === null;
+  loopButton.disabled = currentBounds() === null;
   loopButton.setAttribute('aria-pressed', String(loopActive));
-
-  const badge = $('loop-badge');
-  badge.hidden = !loopActive;
-  if (loopActive) {
-    const [first, second] = [markerNumber(markers, loop.fromId), markerNumber(markers, loop.toId)].sort((a, b) => a - b);
-    badge.textContent = `${first}–${second}`;
-  }
 }
 
-function markerItem(marker) {
+function markerItem(marker, bounds) {
   const item = document.createElement('li');
+  item.classList.toggle('in-loop', bounds !== null && marker.time >= bounds.start && marker.time < bounds.end);
 
-  const number = document.createElement('span');
-  number.className = 'number';
-  number.textContent = markerNumber(markers, marker.id);
+  const number = element('span', 'number', markerNumber(markers, marker.id));
+  const time = element('span', 'time', formatTime(marker.time));
+  time.append(element('small', '', hundredths(marker.time)));
 
-  const time = document.createElement('span');
-  time.className = 'time';
-  time.textContent = formatTime(marker.time);
-
-  const name = document.createElement('input');
-  name.value = marker.name;
-  name.setAttribute('aria-label', 'Nom du marqueur');
-  name.addEventListener('change', () => onRenameMarker(marker.id, name.value));
-
-  const remove = document.createElement('button');
-  remove.textContent = '✕';
-  remove.setAttribute('aria-label', 'Supprimer le marqueur');
-  remove.addEventListener('click', () => onDeleteMarker(marker.id));
-
-  item.append(number, time, name, remove);
+  if (editingMarkers) {
+    const row = element('div', 'marker-row');
+    const name = document.createElement('input');
+    name.value = marker.name;
+    name.setAttribute('aria-label', 'Nom du marqueur');
+    name.addEventListener('change', () => onRenameMarker(marker.id, name.value));
+    const remove = element('button', 'remove', '✕');
+    remove.setAttribute('aria-label', 'Supprimer le marqueur');
+    remove.addEventListener('click', () => onDeleteMarker(marker.id));
+    row.append(number, time, name, remove);
+    item.append(row);
+  } else {
+    const row = element('button', 'marker-row');
+    row.append(number, time, element('span', 'name', marker.name));
+    row.addEventListener('click', () => onMarkerTap(marker.id));
+    item.append(row);
+  }
   return item;
 }
 
-function fillLoopSelect(select, selectedId) {
-  const options = markers.map(marker => {
-    const option = document.createElement('option');
-    option.value = marker.id;
-    option.textContent = `${markerNumber(markers, marker.id)} · ${marker.name}`;
-    option.selected = marker.id === selectedId;
-    return option;
+function element(tag, className, text = '') {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  node.textContent = text;
+  return node;
+}
+
+// 42.37 -> ".37"
+function hundredths(seconds) {
+  return `.${String(Math.floor((seconds % 1) * 100)).padStart(2, '0')}`;
+}
+
+// --- Cadrans (ton, vitesse) ---
+
+// Toucher la moitié gauche : −1 ; la droite : +1 ; glisser vers le haut ou
+// le bas : un pas tous les 18 px ; double toucher : valeur par défaut.
+// Les deux moitiés sont des boutons, pour le clavier et les lecteurs d'écran.
+function setupDial(dial, onStep, onReset) {
+  let startY = null;
+  let dragged = false;
+  let lastTap = 0;
+  dial.addEventListener('pointerdown', event => {
+    startY = event.clientY;
+    dragged = false;
+    dial.setPointerCapture(event.pointerId);
   });
-  select.replaceChildren(...options);
-  select.disabled = markers.length < 2;
+  dial.addEventListener('pointermove', event => {
+    if (startY === null) return;
+    const steps = Math.trunc((startY - event.clientY) / DRAG_STEP_PX);
+    if (steps === 0) return;
+    dragged = true;
+    startY -= steps * DRAG_STEP_PX;
+    onStep(steps);
+  });
+  dial.addEventListener('pointerup', event => {
+    if (startY === null || dragged) { startY = null; return; }
+    startY = null;
+    const now = Date.now();
+    if (now - lastTap < DOUBLE_TAP_MS) {
+      lastTap = 0;
+      onReset();
+      return;
+    }
+    lastTap = now;
+    const box = dial.getBoundingClientRect();
+    onStep(event.clientX < box.left + box.width / 2 ? -1 : 1);
+  });
+  dial.addEventListener('pointercancel', () => { startY = null; });
+  // Clavier seulement (detail 0) : le toucher passe par pointerup.
+  dial.querySelectorAll('.dial-step').forEach(button => button.addEventListener('click', event => {
+    if (event.detail === 0) onStep(Number(button.dataset.step));
+  }));
+}
+
+// Arc de 270° avec la partie remplie jusqu'à `fraction` (0 à 1).
+function drawArc(dial, fraction) {
+  const cx = 38, cy = 38, r = 30, start = Math.PI * 0.8, end = Math.PI * 2.2;
+  const point = angle => `${(cx + r * Math.cos(angle)).toFixed(1)} ${(cy + r * Math.sin(angle)).toFixed(1)}`;
+  const arc = (from, to, color) => `<path d="M${point(from)} A${r} ${r} 0 ${to - from > Math.PI ? 1 : 0} 1 ${point(to)}" stroke="${color}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+  const value = start + (end - start) * fraction;
+  const [dx, dy] = point(value).split(' ');
+  dial.querySelector('.arc').innerHTML = arc(start, end, 'rgba(255,255,255,.12)')
+    + arc(start, Math.max(start + 0.01, value), 'var(--accent)')
+    + `<circle cx="${dx}" cy="${dy}" r="5" fill="var(--accent)"/>`;
 }
 
 function showMessage(text) {

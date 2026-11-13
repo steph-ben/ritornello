@@ -2,7 +2,9 @@
 
 import { markerNumber } from './track.js';
 
-const BAR_HEIGHT = 24;          // bande du haut : marqueurs et zone de boucle
+const BAR_HEIGHT = 26;          // bande du haut : pastilles des marqueurs
+const PIN_RADIUS = 9;
+const PIN_TOUCH = 22;           // distance (px) à laquelle un toucher prend la pastille
 const MAX_READS_PER_PEAK = 2000; // au-delà, on saute des échantillons
 
 // Découpe les échantillons en `count` tranches et garde, pour chacune,
@@ -30,6 +32,17 @@ export function timeAtX(canvas, x, duration) {
   return Math.min(duration, Math.max(0, ratio * duration));
 }
 
+// Marqueur dont la pastille est sous le doigt (bande du haut), ou null.
+export function markerAtPoint(canvas, x, y, markers, duration) {
+  if (y > BAR_HEIGHT + 6 || duration <= 0) return null;
+  let best = null;
+  for (const marker of markers) {
+    const distance = Math.abs((marker.time / duration) * canvas.clientWidth - x);
+    if (distance <= PIN_TOUCH && (!best || distance < best.distance)) best = { id: marker.id, distance };
+  }
+  return best?.id ?? null;
+}
+
 export function drawTimeline(canvas, { peaks, duration, currentTime, markers, bounds }) {
   const ctx = prepareCanvas(canvas);
   const width = canvas.clientWidth;
@@ -37,19 +50,16 @@ export function drawTimeline(canvas, { peaks, duration, currentTime, markers, bo
   const colors = readColors(canvas);
   const xOf = time => (duration > 0 ? (time / duration) * width : 0);
 
-  ctx.fillStyle = colors.bar;
-  ctx.fillRect(0, 0, width, BAR_HEIGHT);
-
   if (bounds) {
     ctx.fillStyle = colors.loop;
-    ctx.fillRect(xOf(bounds.start), 0, xOf(bounds.end) - xOf(bounds.start), height);
+    ctx.fillRect(xOf(bounds.start), BAR_HEIGHT, xOf(bounds.end) - xOf(bounds.start), height - BAR_HEIGHT);
   }
 
   drawWave(ctx, peaks, width, height, xOf(currentTime), colors);
   drawMarkers(ctx, markers, xOf, height, colors);
 
   ctx.fillStyle = colors.playhead;
-  ctx.fillRect(xOf(currentTime) - 1, 0, 2, height);
+  ctx.fillRect(xOf(currentTime) - 1, BAR_HEIGHT, 2, height - BAR_HEIGHT);
 }
 
 function drawWave(ctx, peaks, width, height, playedX, colors) {
@@ -57,22 +67,37 @@ function drawWave(ctx, peaks, width, height, playedX, colors) {
   const middle = BAR_HEIGHT + (height - BAR_HEIGHT) / 2;
   const halfHeight = (height - BAR_HEIGHT) / 2;
   const barWidth = width / peaks.length;
+  // Partie déjà jouée : dégradé magenta -> orange, avec un halo.
+  const played = ctx.createLinearGradient(0, 0, width, 0);
+  played.addColorStop(0, colors.wavePlayed);
+  played.addColorStop(1, colors.wavePlayed2);
   for (let i = 0; i < peaks.length; i++) {
     const x = i * barWidth;
     const h = Math.max(1, peaks[i] * halfHeight);
-    ctx.fillStyle = x < playedX ? colors.wavePlayed : colors.wave;
+    ctx.fillStyle = x < playedX ? played : colors.wave;
     ctx.fillRect(x, middle - h, Math.max(1, barWidth - 0.5), 2 * h);
   }
 }
 
 function drawMarkers(ctx, markers, xOf, height, colors) {
-  ctx.font = '12px system-ui, sans-serif';
+  ctx.font = 'bold 10px system-ui, sans-serif';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const middle = BAR_HEIGHT / 2;
   for (const marker of markers) {
     const x = xOf(marker.time);
     ctx.fillStyle = colors.marker;
-    ctx.fillRect(x, 0, 1, height);
-    ctx.fillText(String(markerNumber(markers, marker.id)), x + 3, BAR_HEIGHT / 2);
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(x - 0.5, middle + PIN_RADIUS, 1, height);
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(x, middle, PIN_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = colors.markerDisc;
+    ctx.fill();
+    ctx.strokeStyle = colors.marker;
+    ctx.stroke();
+    ctx.fillStyle = colors.marker;
+    ctx.fillText(String(markerNumber(markers, marker.id)), x, middle + 0.5);
   }
 }
 
@@ -90,10 +115,11 @@ function readColors(canvas) {
   const style = getComputedStyle(canvas);
   const get = name => style.getPropertyValue(name).trim();
   return {
-    bar: get('--timeline-bar'),
     loop: get('--timeline-loop'),
     wave: get('--wave'),
     wavePlayed: get('--wave-played'),
+    wavePlayed2: get('--wave-played-2'),
+    markerDisc: get('--marker-disc'),
     marker: get('--marker'),
     playhead: get('--playhead'),
   };

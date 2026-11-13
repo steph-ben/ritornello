@@ -2,9 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ritornello</title>
-  <meta name="theme-color" content="#15161a">
+  <meta name="theme-color" content="#07070c">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -12,65 +12,95 @@
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <main>
-    <header class="track">
-      <span id="track-name" class="track-name">Choisissez un morceau dans une liste.</span>
+  <!-- Icônes, réutilisées avec <use href="#…"> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-start" viewBox="0 0 24 24"><path d="M6 5v14"/><path d="M18 6l-8 6 8 6z" fill="currentColor"/></symbol>
+    <symbol id="i-back5" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><text x="12" y="15.5" font-size="8" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">5</text></symbol>
+    <symbol id="i-fwd5" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><text x="12" y="15.5" font-size="8" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">5</text></symbol>
+    <symbol id="i-loop" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  </svg>
+
+  <p id="message" class="message" role="alert" hidden></p>
+
+  <!-- ===== Écran Listes ===== -->
+  <section id="lists-screen" class="screen">
+    <h1 class="app-title">Ritornello</h1>
+
+    <button id="resume" class="resume" hidden>
+      <span class="disc"><svg class="ico"><use href="#i-play"/></svg></span>
+      <span class="resume-text"><small>Reprendre</small><strong id="resume-name"></strong></span>
+    </button>
+
+    <div id="list-tabs" class="tabs" role="tablist" aria-label="Listes de morceaux"></div>
+    <div id="list-menu" class="list-menu" hidden>
+      <button id="rename-list">Renommer</button>
+      <button id="delete-list">Supprimer la liste</button>
+    </div>
+
+    <div class="rows-head">
+      <span id="list-count" class="dim"></span>
+      <button id="edit-tracks" class="icon-button" aria-label="Retirer des morceaux" aria-pressed="false">
+        <svg class="ico"><use href="#i-edit"/></svg>
+      </button>
+    </div>
+    <ul id="track-list" class="rows"></ul>
+
+    <button id="add-track" class="fab" aria-label="Ajouter un morceau">＋</button>
+  </section>
+
+  <!-- ===== Écran Lecteur ===== -->
+  <section id="player-screen" class="screen" hidden>
+    <header class="bar">
+      <button id="go-lists" class="icon-button accent" aria-label="Retour aux listes"><svg class="ico"><use href="#i-back"/></svg></button>
+      <span id="track-name" class="track-name"></span>
     </header>
-    <p id="message" class="message" hidden></p>
 
-    <section class="settings">
-      <div class="stepper">
-        <span class="label">Transposition</span>
-        <button id="pitch-down" aria-label="Baisser d'un demi-ton">−</button>
-        <span id="pitch-value" class="value">0</span>
-        <button id="pitch-up" aria-label="Monter d'un demi-ton">+</button>
+    <div class="tiles">
+      <div id="pitch-dial" class="tile dial" role="group" aria-label="Transposition">
+        <svg class="arc" viewBox="0 0 76 50"></svg>
+        <span id="pitch-value" class="dial-value">0</span>
+        <span class="dial-label">Ton</span>
+        <button class="dial-step minus" data-step="-1" aria-label="Baisser d'un demi-ton">−</button>
+        <button class="dial-step plus" data-step="1" aria-label="Monter d'un demi-ton">+</button>
       </div>
-      <div class="stepper">
-        <span class="label">Vitesse</span>
-        <button id="speed-down" aria-label="Ralentir">−</button>
-        <span id="speed-value" class="value">100 %</span>
-        <button id="speed-up" aria-label="Accélérer">+</button>
+      <div id="speed-dial" class="tile dial" role="group" aria-label="Vitesse">
+        <svg class="arc" viewBox="0 0 76 50"></svg>
+        <span id="speed-value" class="dial-value">100 %</span>
+        <span class="dial-label">Vitesse</span>
+        <button class="dial-step minus" data-step="-1" aria-label="Ralentir">−</button>
+        <button class="dial-step plus" data-step="1" aria-label="Accélérer">+</button>
       </div>
-    </section>
-
-    <div class="counter">
-      <span id="counter-time">00:00</span>
-      <span id="counter-loop" class="counter-loop" hidden></span>
+      <div class="tile time-tile">
+        <span id="counter-time" class="big-time">00:00</span>
+        <span id="counter-loop" class="dim small"></span>
+        <span id="counter-pass" class="pass"></span>
+      </div>
     </div>
 
     <canvas id="timeline" class="timeline"></canvas>
 
-    <section class="markers">
-      <button id="add-marker" disabled>+ Marker</button>
-      <ul id="marker-list" class="marker-list"></ul>
-    </section>
-
-    <section class="loop">
-      <label>Boucle de <select id="loop-from"></select></label>
-      <label>à <select id="loop-to"></select></label>
-      <button id="loop-button" class="loop-button" aria-pressed="false" disabled>⟲ Boucle</button>
-    </section>
+    <div class="tools">
+      <button id="add-marker" class="tool">＋ Marqueur</button>
+      <button id="edit-markers" class="icon-button" aria-label="Modifier les marqueurs" aria-pressed="false">
+        <svg class="ico"><use href="#i-edit"/></svg>
+      </button>
+    </div>
+    <ul id="marker-list" class="markers"></ul>
 
     <footer class="transport">
-      <button id="go-start" aria-label="Retour au début" disabled>⏮</button>
-      <button id="go-back" aria-label="Reculer de 5 secondes" disabled>−5</button>
-      <button id="play-button" class="play-button" aria-label="Lecture" disabled>▶</button>
-      <button id="go-forward" aria-label="Avancer de 5 secondes" disabled>+5</button>
-      <span id="loop-badge" class="loop-badge" hidden></span>
+      <div class="transport-row">
+        <button id="go-start" aria-label="Retour au début"><svg class="ico"><use href="#i-start"/></svg></button>
+        <button id="go-back" aria-label="Reculer de 5 secondes"><svg class="ico"><use href="#i-back5"/></svg></button>
+        <button id="play-button" class="play" aria-label="Lecture"><svg class="ico"><use href="#i-play"/></svg></button>
+        <button id="go-forward" aria-label="Avancer de 5 secondes"><svg class="ico"><use href="#i-fwd5"/></svg></button>
+        <button id="loop-button" class="loop-button" aria-label="Boucle" aria-pressed="false"><svg class="ico"><use href="#i-loop"/></svg></button>
+      </div>
       <span id="clock" class="clock">00:00 / 00:00</span>
     </footer>
-
-    <section class="lists">
-      <div class="list-bar">
-        <select id="list-select" aria-label="Liste de morceaux"></select>
-        <button id="new-list">Nouvelle liste</button>
-        <button id="rename-list">Renommer</button>
-        <button id="delete-list">Supprimer la liste</button>
-      </div>
-      <p id="list-status" class="list-status" hidden>Chargement…</p>
-      <ul id="track-list" class="track-list"></ul>
-      <button id="add-track">Ajouter un morceau</button>
-    </section>
-  </main>
+  </section>
 </body>
 </html>
