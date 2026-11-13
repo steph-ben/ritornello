@@ -92,14 +92,22 @@ async function onFindTrack(id) {
   const picked = await pickFile();
   if (!picked) return;
   const track = library.tracks[id];
-  if (!matchesTrack(track, picked.file)) {
-    showMessage(`Ce n'est pas le même fichier : ${track.name} (${formatSize(track.size)}) attendu.`);
-    return;
-  }
+  if (!matchesTrack(track, picked.file) && !confirmOtherFile(track, picked.file)) return;
   await loadOnce(id, async () => {
     await rememberHandle(id, picked.handle);
     await open(id, await freshFile(picked.handle, picked.file));
   });
+}
+
+// Le nom ou la taille diffère (un drive peut renommer ou réencoder le
+// fichier). On montre les deux, et l'utilisateur décide.
+function confirmOtherFile(track, file) {
+  return confirm(
+    `Ce fichier ne ressemble pas à celui attendu.\n\n` +
+    `Attendu : ${track.name} (${formatSize(track.size)})\n` +
+    `Choisi : ${file.name} (${formatSize(file.size)})\n\n` +
+    `L'utiliser quand même pour ce morceau ?`
+  );
 }
 
 function onRemoveTrack(id) {
