@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test lecture fichier</title>
+<style>
+  body { font: 16px sans-serif; margin: 16px; background: #15161a; color: #eee; }
+  button { font-size: 18px; padding: 12px; width: 100%; }
+  pre { white-space: pre-wrap; font-size: 14px; }
+</style>
+</head>
+<body>
+<p>Test : pourquoi le fichier devient illisible (NotReadableError) ?</p>
+<button id="go">Choisir un fichier et tester</button>
+<pre id="log"></pre>
+<script>
+// Chaque étape lit le contenu du fichier d'une façon différente et note
+// si ça marche. Le résultat dit quelle étape casse la lecture.
+const logBox = document.getElementById('log');
+const log = text => { logBox.textContent += text + '\n'; };
+
+async function tryRead(label, read) {
+  try {
+    const bytes = await read();
+    log(`OK     ${label} : ${bytes} octets lus`);
+  } catch (error) {
+    log(`ÉCHEC  ${label} : ${error.name}`);
+  }
+}
+
+function saveInDatabase(handle) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('test-lecture', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('h');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction('h', 'readwrite');
+      transaction.objectStore('h').put(handle, 'k');
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    };
+  });
+}
+
+document.getElementById('go').onclick = async () => {
+  logBox.textContent = '';
+  let handle;
+  try {
+    [handle] = await window.showOpenFilePicker();
+  } catch (error) {
+    return log('Sélecteur : ' + error.name);
+  }
+  const file = await handle.getFile();
+  log(`Fichier : ${file.name}, taille annoncée ${file.size}, modifié ${file.lastModified}`);
+
+  await tryRead('1. lecture tout de suite', async () => (await file.arrayBuffer()).byteLength);
+  await tryRead('2. même fichier, relu', async () => (await file.arrayBuffer()).byteLength);
+  await tryRead('3. premier Mo seulement', async () => (await file.slice(0, 1e6).arrayBuffer()).byteLength);
+  await saveInDatabase(handle).then(() => log('       handle enregistré'), e => log('       enregistrement : ' + e.name));
+  await tryRead('4. même fichier, après enregistrement', async () => (await file.arrayBuffer()).byteLength);
+  const fresh = await handle.getFile();
+  log(`       nouvelle copie : taille ${fresh.size}, modifié ${fresh.lastModified}`);
+  await tryRead('5. nouvelle copie', async () => (await fresh.arrayBuffer()).byteLength);
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  await tryRead('6. nouvelle copie, 3 s plus tard', async () => (await fresh.arrayBuffer()).byteLength);
+  log('Fini.');
+};
+</script>
+</body>
+</html>
