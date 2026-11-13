@@ -8,7 +8,9 @@
 .tuner-switch button { padding: 0 12px; border-radius: 10px; color: var(--text-dim); font-weight: 600; }
 .tuner-switch button[aria-pressed="true"] { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 
-.tuner-middle { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px; min-height: 0; }
+.tuner-middle { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px; min-height: 0; transition: opacity 0.3s; }
+/* Aucune note depuis un moment : la dernière reste lisible, mais pâlie. */
+#tuner-screen.tuner-waiting .tuner-middle { opacity: 0.35; }
 .tuner-note { text-align: center; font-size: 88px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
 .tuner-cents { text-align: center; font-size: 28px; font-weight: 600; min-height: 34px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 

@@ -11,6 +11,9 @@ const IN_TUNE_CENTS = 5;
 const GAUGE_CENTS = 50;
 const SMOOTHING = 0.35; // part de la nouvelle mesure dans la valeur affichée
 const NEW_NOTE_CENTS = 80; // au-delà, on change de note : pas de lissage
+const CONFIRM_MS = 120; // une note doit tenir ce temps avant d'être affichée
+const CONFIRM_CENTS = 50; // écart toléré entre deux mesures de la même note
+const WAITING_MS = 1000; // sans note pendant ce temps, l'affichage pâlit
 
 const screen = document.getElementById('tuner-screen');
 const listsScreen = document.getElementById('lists-screen');
@@ -206,12 +209,26 @@ function smooth(frequency) {
   return smoothedFrequency;
 }
 
+// Une note n'est affichée que si elle tient CONFIRM_MS : un bruit d'archet ou
+// une autre corde qui résonne un instant ne s'affiche pas.
+// Sans note depuis WAITING_MS, l'affichage pâlit : on voit que l'accordeur attend.
 function listen(analyser, sampleRate) {
   const samples = new Float32Array(analyser.fftSize);
-  function onFrame() {
+  let candidate = null; // dernière hauteur entendue, pas encore forcément affichée
+  let candidateSince = 0;
+  let lastShownAt = -Infinity; // rien d'affiché : pâle dès l'ouverture
+  function onFrame(now = performance.now()) {
     analyser.getFloatTimeDomainData(samples);
     const frequency = detectPitch(samples, sampleRate);
-    if (frequency !== null) renderHeard(smooth(frequency));
+    const isSameNote = frequency !== null && candidate !== null
+      && Math.abs(centsBetween(frequency, candidate)) < CONFIRM_CENTS;
+    if (!isSameNote) candidateSince = now;
+    candidate = frequency;
+    if (frequency !== null && now - candidateSince >= CONFIRM_MS) {
+      renderHeard(smooth(frequency));
+      lastShownAt = now;
+    }
+    screen.classList.toggle('tuner-waiting', now - lastShownAt > WAITING_MS);
     microphone.frameId = requestAnimationFrame(onFrame);
   }
   onFrame();
@@ -237,10 +254,10 @@ async function startMicrophone() {
     analyser.fftSize = 4096;
     context.createMediaStreamSource(stream).connect(analyser);
     listen(analyser, context.sampleRate);
-  } catch {
+  } catch (error) {
     if (microphone === current) {
       stopMicrophone();
-      showError('Micro inaccessible. Autorisez le micro pour ce site dans les réglages du navigateur, puis rouvrez l\'accordeur.');
+      showError(`Micro inaccessible (${error.name}). Autorisez le micro pour ce site dans les réglages du navigateur, puis rouvrez l'accordeur.`);
     }
   }
 }
