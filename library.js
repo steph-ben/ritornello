@@ -116,7 +116,15 @@ export function mergeLibraries(local, remote) {
 
 // Vrai si le fichier choisi est bien celui du morceau.
 export function matchesTrack(track, file) {
-  return track.name === file.name && track.size === file.size;
+  return sameName(track.name, file.name) && track.size === file.size;
+}
+
+// Les systèmes n'écrivent pas les accents de la même façon (é en un ou
+// deux caractères), et certains téléchargements gardent « utf-8'' » devant
+// le nom.
+function sameName(a, b) {
+  const clean = name => name.replace(/^utf-8''/i, '').normalize('NFC');
+  return clean(a) === clean(b);
 }
 
 function newList(name) {

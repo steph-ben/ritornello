@@ -97,6 +97,13 @@ test('matchesTrack rejects another file', () => {
   assert.equal(matchesTrack(track, { name: 'Gavotte.mp3', size: 1234 }), false);
 });
 
+test('matchesTrack ignores how accents are encoded and a utf-8 prefix', () => {
+  const decomposed = { name: 'Bourre\u0301e.mp3', size: 1234 };
+  assert.equal(matchesTrack(decomposed, { name: 'Bourr\u00e9e.mp3', size: 1234 }), true);
+  const prefixed = { name: "utf-8''Branle Th\u00e8me.mp3", size: 1234 };
+  assert.equal(matchesTrack(prefixed, { name: 'Branle Th\u00e8me.mp3', size: 1234 }), true);
+});
+
 test('functions do not modify their arguments', () => {
   const lib = createLibrary();
   const copy = structuredClone(lib);
