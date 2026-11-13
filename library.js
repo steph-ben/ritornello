@@ -67,6 +67,49 @@ export function lastTrack(lib) {
   return inAList ? lib.tracks[lib.lastTrackId] : null;
 }
 
+// --- Synchronisation entre appareils ---
+
+const SYNC_VERSION = 1;
+
+// Date les listes quand une modification les a changées (créer, renommer,
+// supprimer, ajouter ou retirer un morceau). Sert à la fusion.
+export function stampLists(before, after, now) {
+  return after.lists === before.lists ? after : { ...after, listsModifiedAt: now };
+}
+
+// Le contenu du fichier partagé. La liste affichée et le dernier morceau
+// ouvert restent sur l'appareil.
+export function toSyncFile(lib) {
+  const { lists, listsModifiedAt = 0, tracks } = lib;
+  return JSON.stringify({ version: SYNC_VERSION, lists, listsModifiedAt, tracks });
+}
+
+// Le contenu partagé, ou null si le fichier est illisible ou d'une autre version.
+export function fromSyncFile(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data?.version !== SYNC_VERSION || !Array.isArray(data.lists) || data.lists.length === 0) return null;
+    return { lists: data.lists, listsModifiedAt: data.listsModifiedAt ?? 0, tracks: data.tracks ?? {} };
+  } catch {
+    return null;
+  }
+}
+
+// Fusion : chaque morceau, le plus récent gagne ; les listes, le bloc le
+// plus récent gagne en entier. La liste affichée et le dernier morceau
+// restent ceux de l'appareil.
+export function mergeLibraries(local, remote) {
+  const tracks = { ...local.tracks };
+  for (const [id, track] of Object.entries(remote.tracks)) {
+    if (!tracks[id] || track.modifiedAt > tracks[id].modifiedAt) tracks[id] = track;
+  }
+  const remoteListsWin = remote.listsModifiedAt > (local.listsModifiedAt ?? 0);
+  const lists = remoteListsWin ? remote.lists : local.lists;
+  const listsModifiedAt = remoteListsWin ? remote.listsModifiedAt : (local.listsModifiedAt ?? 0);
+  const currentListId = lists.some(list => list.id === local.currentListId) ? local.currentListId : lists[0].id;
+  return { ...local, lists, listsModifiedAt, tracks, currentListId };
+}
+
 // Vrai si le fichier choisi est bien celui du morceau.
 export function matchesTrack(track, file) {
   return track.name === file.name && track.size === file.size;

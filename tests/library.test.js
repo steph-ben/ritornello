@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLibrary, trackId, addList, renameList, deleteList, selectList,
   currentList, addTrackToList, removeTrackFromList, updateTrack,
-  matchesTrack, setLastTrack, lastTrack } from '../library.js';
+  matchesTrack, setLastTrack, lastTrack, mergeLibraries, toSyncFile, fromSyncFile,
+  stampLists } from '../library.js';
 
 const BOURREE = { name: 'Bourrée.mp3', size: 1234 };
 
@@ -114,4 +115,71 @@ test('lastTrack returns the last opened track, or null', () => {
   assert.equal(lastTrack(lib).name, 'Bourrée.mp3');
   lib = removeTrackFromList(lib, currentList(lib).id, id);
   assert.equal(lastTrack(lib), null);
+});
+
+// --- Synchronisation ---
+
+const GAVOTTE = { name: 'Gavotte.mp3', size: 99 };
+
+function libWith(file, now) {
+  const lib = createLibrary();
+  return addTrackToList(lib, currentList(lib).id, file, now);
+}
+
+test('mergeLibraries keeps the most recent version of each track', () => {
+  const id = trackId(BOURREE.name, BOURREE.size);
+  const local = updateTrack(libWith(BOURREE, 1), id, { speed: 70 }, 10);
+  const remote = fromSyncFile(toSyncFile(updateTrack(local, id, { speed: 50 }, 20)));
+  assert.equal(mergeLibraries(local, remote).tracks[id].speed, 50);
+  const older = fromSyncFile(toSyncFile(updateTrack(local, id, { speed: 50 }, 5)));
+  assert.equal(mergeLibraries(local, older).tracks[id].speed, 70);
+});
+
+test('mergeLibraries keeps tracks present on one side only', () => {
+  const local = libWith(BOURREE, 1);
+  const remote = fromSyncFile(toSyncFile(libWith(GAVOTTE, 1)));
+  const merged = mergeLibraries(local, remote);
+  assert.ok(merged.tracks[trackId(BOURREE.name, BOURREE.size)]);
+  assert.ok(merged.tracks[trackId(GAVOTTE.name, GAVOTTE.size)]);
+});
+
+test('mergeLibraries takes the most recent block of lists', () => {
+  const local = { ...libWith(BOURREE, 1), listsModifiedAt: 10 };
+  const newer = { ...addList(local, 'Piano'), listsModifiedAt: 20 };
+  assert.equal(mergeLibraries(local, fromSyncFile(toSyncFile(newer))).lists.length, 2);
+  const older = { ...addList(local, 'Piano'), listsModifiedAt: 5 };
+  assert.equal(mergeLibraries(local, fromSyncFile(toSyncFile(older))).lists.length, 1);
+});
+
+test('mergeLibraries treats a missing listsModifiedAt as 0', () => {
+  const local = libWith(BOURREE, 1); // ancienne bibliothèque, sans date
+  const remote = fromSyncFile(toSyncFile({ ...addList(local, 'Piano'), listsModifiedAt: 1 }));
+  assert.equal(mergeLibraries(local, remote).lists.length, 2);
+});
+
+test('mergeLibraries keeps the local current list and last track', () => {
+  let local = addList(libWith(BOURREE, 1), 'Piano');  // Piano affichée
+  local = setLastTrack({ ...local, listsModifiedAt: 1 }, trackId(BOURREE.name, BOURREE.size));
+  const remote = fromSyncFile(toSyncFile({ ...deleteList(local, local.currentListId), listsModifiedAt: 9 }));
+  const merged = mergeLibraries(local, remote);
+  assert.equal(merged.lastTrackId, local.lastTrackId);
+  assert.equal(merged.currentListId, merged.lists[0].id); // Piano a disparu
+});
+
+test('fromSyncFile rejects unreadable or unknown files', () => {
+  assert.equal(fromSyncFile('{'), null);
+  assert.equal(fromSyncFile('{"version":2}'), null);
+});
+
+test('toSyncFile leaves out what belongs to the device', () => {
+  const text = toSyncFile(setLastTrack(libWith(BOURREE, 1), 'x'));
+  assert.ok(!text.includes('currentListId'));
+  assert.ok(!text.includes('lastTrackId'));
+});
+
+test('stampLists dates the library only when lists changed', () => {
+  const before = libWith(BOURREE, 1);
+  assert.equal(stampLists(before, addList(before, 'Piano'), 42).listsModifiedAt, 42);
+  const same = updateTrack(before, trackId(BOURREE.name, BOURREE.size), { speed: 60 }, 3);
+  assert.equal(stampLists(before, same, 42).listsModifiedAt, undefined);
 });
