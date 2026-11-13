@@ -7,6 +7,13 @@ export function trackId(name, size) {
   return `${name}|${size}`;
 }
 
+// L'identifiant d'un morceau déjà connu sous un nom écrit autrement
+// (voir matchesTrack), sinon celui d'un nouveau morceau.
+export function findTrackId(lib, file) {
+  const known = Object.values(lib.tracks).find(track => matchesTrack(track, file));
+  return known ? known.id : trackId(file.name, file.size);
+}
+
 export function createLibrary() {
   const list = newList('Mes morceaux');
   return { lists: [list], tracks: {}, currentListId: list.id };
@@ -39,7 +46,7 @@ export function selectList(lib, listId) {
 }
 
 export function addTrackToList(lib, listId, file, now) {
-  const id = trackId(file.name, file.size);
+  const id = findTrackId(lib, file);
   const tracks = lib.tracks[id] ? lib.tracks : { ...lib.tracks, [id]: newTrack(id, file, now) };
   const withTrack = { ...lib, tracks };
   return changeList(withTrack, listId, list =>

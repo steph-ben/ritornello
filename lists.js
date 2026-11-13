@@ -2,7 +2,7 @@
 // Ouvrir un morceau passe par `openInPlayer`, fourni par app.js.
 
 import { createLibrary, currentList, addList, renameList, deleteList, selectList,
-  addTrackToList, removeTrackFromList, updateTrack, matchesTrack, trackId,
+  addTrackToList, removeTrackFromList, updateTrack, matchesTrack, findTrackId,
   setLastTrack, lastTrack, stampLists } from './library.js';
 import { initSync, enableSync, disableSync, libraryChanged, isSyncOn } from './sync.js';
 import * as storage from './storage.js';
@@ -65,7 +65,7 @@ async function onAddTrack() {
   const picked = await pickFile();
   if (!picked) return;
   const { handle, file } = picked;
-  const id = trackId(file.name, file.size);
+  const id = findTrackId(library, file);
   await loadOnce(id, async () => {
     changeLibrary(addTrackToList(library, currentList(library).id, file, Date.now()));
     await rememberHandle(id, handle);

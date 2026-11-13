@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLibrary, trackId, addList, renameList, deleteList, selectList,
+import { createLibrary, trackId, findTrackId, addList, renameList, deleteList, selectList,
   currentList, addTrackToList, removeTrackFromList, updateTrack,
   matchesTrack, setLastTrack, lastTrack, mergeLibraries, toSyncFile, fromSyncFile,
   stampLists } from '../library.js';
@@ -102,6 +102,16 @@ test('matchesTrack ignores how accents are encoded and a utf-8 prefix', () => {
   assert.equal(matchesTrack(decomposed, { name: 'Bourr\u00e9e.mp3', size: 1234 }), true);
   const prefixed = { name: "utf-8''Branle Th\u00e8me.mp3", size: 1234 };
   assert.equal(matchesTrack(prefixed, { name: 'Branle Th\u00e8me.mp3', size: 1234 }), true);
+});
+
+test('addTrackToList reuses a track whose name is encoded differently', () => {
+  const empty = createLibrary();
+  const listId = empty.currentListId;
+  const lib = addTrackToList(empty, listId, { name: 'Bourre\u0301e.mp3', size: 1234 }, 1);
+  const again = addTrackToList(lib, listId, { name: 'Bourr\u00e9e.mp3', size: 1234 }, 2);
+  assert.equal(Object.keys(again.tracks).length, 1);
+  assert.equal(findTrackId(again, { name: "utf-8''Bourr\u00e9e.mp3", size: 1234 }), 'Bourre\u0301e.mp3|1234');
+  assert.equal(findTrackId(again, { name: 'Gavotte.mp3', size: 1234 }), 'Gavotte.mp3|1234');
 });
 
 test('functions do not modify their arguments', () => {
