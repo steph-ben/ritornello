@@ -1,10 +1,11 @@
-// Relie l'écran au lecteur (player.js), à la logique du morceau (track.js)
-// et au dessin de la barre de temps (waveform.js).
+// Le lecteur : relie l'écran à player.js (son), track.js (marqueurs,
+// boucle) et waveform.js (barre de temps). Les listes sont dans lists.js.
 
 import * as player from './player.js';
 import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds,
   positionAfterTick, stepSpeed, stepSemitones, formatTime } from './track.js';
 import { computePeaks, drawTimeline, timeAtX } from './waveform.js';
+import { initLists, saveTrackSettings } from './lists.js';
 
 const REFRESH_MS = 50;   // mise à jour de l'écran pendant la lecture
 const JUMP_SECONDS = 5;  // recul et avance
@@ -16,6 +17,7 @@ const playButton = $('play-button');
 const transportButtons = ['go-start', 'go-back', 'go-forward', 'add-marker'].map($);
 
 // État du morceau ouvert
+let currentTrackId = null;
 let duration = 0;
 let peaks = null;
 let markers = [];
@@ -26,7 +28,6 @@ let semitones = 0;
 let refreshTimer = null;
 let wakeLock = null;
 
-$('open-button').addEventListener('click', openTrack);
 playButton.addEventListener('click', togglePlay);
 $('go-start').addEventListener('click', () => seekTo(0));
 $('go-back').addEventListener('click', () => seekTo(player.getCurrentTime() - JUMP_SECONDS));
@@ -55,43 +56,38 @@ player.onEnded(() => {
 renderSettings();
 renderMarkers();
 renderTime();
+initLists({ onOpen: openFile, onMessage: showMessage });
 
 // --- Morceau ---
 
-async function openTrack() {
-  if (!window.showOpenFilePicker) {
-    showMessage("Ce navigateur ne permet pas d'ouvrir les fichiers. Utilisez Chrome sur Android, ou Brave avec l'option file-system-access-api.");
-    return;
-  }
-  let handle;
+// Charge le fichier dans le lecteur avec les réglages mémorisés du morceau.
+// Renvoie true si ça a marché (appelé par lists.js).
+async function openFile(file, track) {
   try {
-    // Pas de filtre de type : sinon Proton Drive grise tous les fichiers.
-    [handle] = await window.showOpenFilePicker();
-  } catch {
-    return; // sélecteur fermé sans choisir
-  }
-  let file;
-  try {
-    file = await handle.getFile();
-  } catch {
-    showMessage(`Impossible d'ouvrir ${handle.name} : le fichier n'est pas accessible.`);
-    return;
-  }
-  try {
-    const track = await player.loadAudio(await file.arrayBuffer());
+    const audio = await player.loadAudio(await file.arrayBuffer());
     stopPlayback();
-    duration = track.duration;
-    peaks = computePeaks(track.samples, PEAK_COUNT);
-    markers = [];
-    loop = null;
-    loopActive = false;
-    $('track-name').textContent = file.name;
-    hideMessage();
+    duration = audio.duration;
+    peaks = computePeaks(audio.samples, PEAK_COUNT);
   } catch {
     showMessage(`Impossible de lire ${file.name} : format non reconnu, ou fichier trop long pour la mémoire.`);
+    return false;
   }
+  currentTrackId = track.id;
+  ({ markers, loop, loopActive, speed, semitones } = track);
+  player.setSpeed(speed);
+  player.setSemitones(semitones);
+  applyLoop();
+  $('track-name').textContent = file.name;
+  hideMessage();
+  renderSettings();
   renderMarkers();
   renderTime();
+  return true;
+}
+
+// Garde les réglages du morceau ouvert (listes, mémoire).
+function rememberSettings() {
+  if (currentTrackId) saveTrackSettings(currentTrackId, { markers, loop, loopActive, speed, semitones });
 }
 
 // --- Lecture ---
@@ -133,12 +129,14 @@ function changeSpeed(direction) {
   speed = stepSpeed(speed, direction);
   player.setSpeed(speed);
   renderSettings();
+  rememberSettings();
 }
 
 function changeSemitones(direction) {
   semitones = stepSemitones(semitones, direction);
   player.setSemitones(semitones);
   renderSettings();
+  rememberSettings();
 }
 
 // --- Marqueurs et boucle ---
@@ -147,6 +145,7 @@ function onAddMarker() {
   markers = addMarker(markers, player.getCurrentTime());
   updateLoopAfterMarkerChange();
   applyLoop();
+  rememberSettings();
   renderMarkers();
   renderTime();
 }
@@ -155,12 +154,14 @@ function onDeleteMarker(id) {
   markers = removeMarker(markers, id);
   updateLoopAfterMarkerChange();
   applyLoop();
+  rememberSettings();
   renderMarkers();
   renderTime();
 }
 
 function onRenameMarker(id, name) {
   markers = renameMarker(markers, id, name);
+  rememberSettings();
   renderMarkers();
 }
 
@@ -168,6 +169,7 @@ function onLoopSelect() {
   loop = { fromId: Number($('loop-from').value), toId: Number($('loop-to').value) };
   if (!loopBounds(markers, loop)) loopActive = false;
   applyLoop();
+  rememberSettings();
   renderMarkers();
   renderTime();
 }
@@ -175,6 +177,7 @@ function onLoopSelect() {
 function toggleLoop() {
   loopActive = !loopActive && loopBounds(markers, loop) !== null;
   applyLoop();
+  rememberSettings();
   renderMarkers();
   renderTime();
 }

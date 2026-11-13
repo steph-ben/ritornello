@@ -10,8 +10,7 @@
 <body>
   <main>
     <header class="track">
-      <button id="open-button">Ouvrir un morceau</button>
-      <span id="track-name" class="track-name"></span>
+      <span id="track-name" class="track-name">Choisissez un morceau dans une liste.</span>
     </header>
     <p id="message" class="message" hidden></p>
 
@@ -56,6 +55,17 @@
       <span id="loop-badge" class="loop-badge" hidden></span>
       <span id="clock" class="clock">00:00 / 00:00</span>
     </footer>
+
+    <section class="lists">
+      <div class="list-bar">
+        <select id="list-select" aria-label="Liste de morceaux"></select>
+        <button id="new-list">Nouvelle liste</button>
+        <button id="rename-list">Renommer</button>
+        <button id="delete-list">Supprimer la liste</button>
+      </div>
+      <ul id="track-list" class="track-list"></ul>
+      <button id="add-track">Ajouter un morceau</button>
+    </section>
   </main>
 </body>
 </html>
