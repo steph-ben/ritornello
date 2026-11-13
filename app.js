@@ -304,3 +304,6 @@ function showMessage(text) {
 function hideMessage() {
   $('message').hidden = true;
 }
+
+// Copie hors ligne de l'app (sw.js). Sans service worker, l'app marche quand même.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
