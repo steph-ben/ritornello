@@ -2,7 +2,7 @@
 // boucle) et waveform.js (barre de temps). Les listes sont dans lists.js.
 
 import * as player from './player.js';
-import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds, tapLoop,
+import { addMarker, removeMarker, renameMarker, moveMarker, markerNumber, loopBounds, tapLoop,
   positionAfterTick, stepSpeed, stepSemitones, formatTime,
   MIN_SPEED, MAX_SPEED, MAX_SEMITONES } from './track.js';
 import { computePeaks, drawTimeline, timeAtX, markerAtPoint } from './waveform.js';
@@ -31,7 +31,8 @@ let speed = 100;
 let semitones = 0;
 let refreshTimer = null;
 let wakeLock = null;
-let editingMarkers = false;
+let openMarkerId = null;  // marqueur dont le panneau ⋯ est ouvert
+const NUDGE_SECONDS = 0.1;
 let passCount = 1;        // passages dans la boucle depuis son dernier changement
 let lastTickTime = 0;
 
@@ -42,7 +43,6 @@ $('go-forward').addEventListener('click', () => seekTo(player.getCurrentTime() +
 setupDial($('pitch-dial'), changeSemitones, () => changeSemitones(-semitones));
 setupDial($('speed-dial'), changeSpeed, () => changeSpeed((100 - speed) / 5));
 $('add-marker').addEventListener('click', onAddMarker);
-$('edit-markers').addEventListener('click', toggleEditMarkers);
 $('loop-button').addEventListener('click', toggleLoop);
 $('go-lists').addEventListener('click', () => {
   if (history.state?.player) history.back(); // passe par popstate
@@ -114,7 +114,7 @@ async function openFile(file, track) {
   player.setSemitones(semitones);
   applyLoop();
   $('track-name').textContent = file.name;
-  editingMarkers = false;
+  openMarkerId = null;
   passCount = 1;
   hideMessage();
   showPlayerScreen();
@@ -163,7 +163,9 @@ function onTick() {
   if (loopActive) {
     const jump = positionAfterTick(now, currentBounds());
     if (jump !== null) player.seek(jump);
-    if (jump !== null || now < lastTickTime - 0.3) countPass();
+    // Un passage : on a atteint la fin, ou le moteur est revenu au début tout seul.
+    const reachedEnd = jump !== null && now >= currentBounds().end;
+    if (reachedEnd || (jump === null && now < lastTickTime - 0.3)) countPass();
   }
   lastTickTime = player.getCurrentTime();
   renderTime();
@@ -229,15 +231,29 @@ function onMarkerTap(id) {
   renderTime();
 }
 
-function toggleEditMarkers() {
-  editingMarkers = !editingMarkers;
+function toggleMarkerPanel(id) {
+  openMarkerId = openMarkerId === id ? null : id;
   renderMarkers();
 }
 
+// Déplace un marqueur (à l'instant joué, ou de ±0,1 s).
+function onMoveMarker(id, time) {
+  markers = moveMarker(markers, id, Math.min(time, duration));
+  updateLoopAfterMarkerChange();
+  applyLoop();
+  rememberSettings();
+  renderMarkers();
+  renderTime();
+}
+
+// Activer la boucle replace la lecture dedans si elle était ailleurs.
 function toggleLoop() {
   loopActive = !loopActive && currentBounds() !== null;
   passCount = 1;
   applyLoop();
+  if (loopActive && positionAfterTick(player.getCurrentTime(), currentBounds()) !== null) {
+    seekTo(currentBounds().start);
+  }
   rememberSettings();
   renderMarkers();
   renderTime();
@@ -288,6 +304,8 @@ function renderTime() {
   $('counter-loop').textContent = bounds ? `${formatTime(bounds.start)} · ${formatTime(bounds.end)}` : '';
   $('counter-pass').textContent = bounds ? (passCount === 1 ? '1er passage' : `${passCount}e passage`) : '';
   $('clock').textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+  const here = document.querySelector('.marker-panel .here');
+  if (here) here.textContent = `Placer à ${formatTime(currentTime)}`;
 
   const playing = player.isPlaying();
   playButton.innerHTML = `<svg class="ico"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`;
@@ -311,8 +329,6 @@ function renderSettings() {
 function renderMarkers() {
   const bounds = loopActive ? currentBounds() : null;
   $('marker-list').replaceChildren(...markers.map(marker => markerItem(marker, bounds)));
-  $('edit-markers').setAttribute('aria-pressed', String(editingMarkers));
-  $('edit-markers').hidden = markers.length === 0 && !editingMarkers;
 
   const loopButton = $('loop-button');
   loopButton.disabled = currentBounds() === null;
@@ -327,24 +343,43 @@ function markerItem(marker, bounds) {
   const time = element('span', 'time', formatTime(marker.time));
   time.append(element('small', '', hundredths(marker.time)));
 
-  if (editingMarkers) {
-    const row = element('div', 'marker-row');
-    const name = document.createElement('input');
-    name.value = marker.name;
-    name.setAttribute('aria-label', 'Nom du marqueur');
-    name.addEventListener('change', () => onRenameMarker(marker.id, name.value));
-    const remove = element('button', 'remove', '✕');
-    remove.setAttribute('aria-label', 'Supprimer le marqueur');
-    remove.addEventListener('click', () => onDeleteMarker(marker.id));
-    row.append(number, time, name, remove);
-    item.append(row);
-  } else {
-    const row = element('button', 'marker-row');
-    row.append(number, time, element('span', 'name', marker.name));
-    row.addEventListener('click', () => onMarkerTap(marker.id));
-    item.append(row);
-  }
+  const row = element('button', 'marker-row');
+  row.append(number, time, element('span', 'name', marker.name));
+  row.addEventListener('click', () => onMarkerTap(marker.id));
+
+  const more = element('button', 'more', '⋯');
+  more.setAttribute('aria-label', `Modifier le marqueur ${markerNumber(markers, marker.id)}`);
+  more.setAttribute('aria-expanded', String(openMarkerId === marker.id));
+  more.addEventListener('click', () => toggleMarkerPanel(marker.id));
+
+  item.append(row, more);
+  if (openMarkerId === marker.id) item.append(markerPanel(marker));
   return item;
+}
+
+// Panneau ⋯ : nom, déplacement, suppression.
+function markerPanel(marker) {
+  const panel = element('div', 'marker-panel');
+
+  const name = document.createElement('input');
+  name.value = marker.name;
+  name.setAttribute('aria-label', 'Nom du marqueur');
+  name.addEventListener('change', () => onRenameMarker(marker.id, name.value));
+
+  const earlier = element('button', 'nudge', '−0,1 s');
+  earlier.addEventListener('click', () => onMoveMarker(marker.id, marker.time - NUDGE_SECONDS));
+  const here = element('button', 'here', `Placer à ${formatTime(player.getCurrentTime())}`);
+  here.addEventListener('click', () => onMoveMarker(marker.id, player.getCurrentTime()));
+  const later = element('button', 'nudge', '+0,1 s');
+  later.addEventListener('click', () => onMoveMarker(marker.id, marker.time + NUDGE_SECONDS));
+
+  const remove = element('button', 'remove', 'Supprimer');
+  remove.addEventListener('click', () => { openMarkerId = null; onDeleteMarker(marker.id); });
+
+  const moves = element('div', 'marker-moves');
+  moves.append(earlier, here, later);
+  panel.append(name, moves, remove);
+  return panel;
 }
 
 function element(tag, className, text = '') {
@@ -356,7 +391,8 @@ function element(tag, className, text = '') {
 
 // 42.37 -> ".37"
 function hundredths(seconds) {
-  return `.${String(Math.floor((seconds % 1) * 100)).padStart(2, '0')}`;
+  // + 1e-6 : 10.1 s vaut 10.0999… en binaire, on veut « .10 ».
+  return `.${String(Math.floor(seconds * 100 + 1e-6) % 100).padStart(2, '0')}`;
 }
 
 // --- Cadrans (ton, vitesse) ---

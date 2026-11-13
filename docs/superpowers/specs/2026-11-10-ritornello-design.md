@@ -96,6 +96,12 @@ Les listes de morceaux :
 - Un vrai fichier `.apk` (Capacitor) : seulement plus tard, si l'app
   installée via Chrome gêne vraiment.
 
+## Plus tard (demandé le 2026-11-13)
+
+- Un accordeur de violon (sol, ré, la, mi).
+- Un accordeur de guitare.
+- Trouver la tonalité d'un morceau, comme le fait CarlTune.
+
 ## Ce qui serait un échec
 
 - Plus de deux gestes pour reprendre le travail sur un morceau déjà dans une

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addMarker, removeMarker, renameMarker, markerNumber, loopBounds,
-  positionAfterTick, stepSpeed, stepSemitones, formatTime, tapLoop } from '../track.js';
+  positionAfterTick, stepSpeed, stepSemitones, formatTime, tapLoop, moveMarker } from '../track.js';
 
 test('addMarker keeps markers sorted by time with stable ids', () => {
   let m = addMarker([], 30);
@@ -99,4 +99,19 @@ test('tapLoop: an old reversed loop is read in time order', () => {
 test('loopBounds: toId null means the end of the track', () => {
   assert.deepEqual(loopBounds(FIVE, { fromId: 5, toId: null }, 200), { start: 50, end: 200 });
   assert.equal(loopBounds(FIVE, { fromId: 5, toId: null }, 0), null);
+});
+
+test('positionAfterTick jumps to the loop start when playing before it', () => {
+  const b = { start: 11, end: 51 };
+  assert.equal(positionAfterTick(3, b), 11);
+  assert.equal(positionAfterTick(10.98, b), null); // juste après un saut : on laisse jouer
+});
+
+test('moveMarker changes the time, keeps the order and never goes below 0', () => {
+  let m = moveMarker(FIVE, 2, 45);
+  assert.deepEqual(m.map(x => x.id), [1, 3, 4, 2, 5]);
+  assert.equal(m.find(x => x.id === 2).time, 45);
+  m = moveMarker(FIVE, 1, -3);
+  assert.equal(m[0].time, 0);
+  assert.equal(FIVE[1].time, 20); // argument inchangé
 });

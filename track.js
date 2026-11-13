@@ -21,6 +21,12 @@ export function renameMarker(markers, id, name) {
   return markers.map(m => (m.id === id ? { ...m, name } : m));
 }
 
+// Déplace un marqueur (jamais avant 0) ; la liste reste triée par temps.
+export function moveMarker(markers, id, time) {
+  return markers.map(m => (m.id === id ? { ...m, time: Math.max(0, time) } : m))
+    .sort((a, b) => a.time - b.time);
+}
+
 // Numéro affiché : position dans l'ordre du temps, à partir de 1.
 export function markerNumber(markers, id) {
   return markers.findIndex(m => m.id === id) + 1;
@@ -67,10 +73,15 @@ function loopSections(markers, loop) {
   return { first: Math.min(from, to), last: Math.max(from, to) - 1 };
 }
 
-// Où sauter quand la lecture arrive à `time` : au début de la boucle si on a
-// atteint ou dépassé sa fin, sinon null (pas de saut).
+// Où sauter quand la lecture est à `time` : au début de la boucle si on a
+// atteint sa fin, ou si on joue avant son début ; sinon null (pas de saut).
+// Petite marge avant le début : juste après un saut, le temps lu peut être
+// à peine en dessous.
+const BEFORE_START_MARGIN = 0.05;
+
 export function positionAfterTick(time, bounds) {
-  if (bounds && time >= bounds.end) return bounds.start;
+  if (!bounds) return null;
+  if (time >= bounds.end || time < bounds.start - BEFORE_START_MARGIN) return bounds.start;
   return null;
 }
 

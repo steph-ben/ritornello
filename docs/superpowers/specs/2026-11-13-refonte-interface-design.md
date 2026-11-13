@@ -97,12 +97,13 @@ De haut en bas :
 3. **Forme d'onde** : en haut, des pastilles numérotées pour les marqueurs ;
    la zone de boucle est teintée ; la partie déjà jouée est en dégradé avec
    un halo. Toucher l'onde déplace la lecture, comme aujourd'hui.
-4. **Outils** : « ＋ Marqueur » pose un marqueur à l'instant joué. « ✎ »
-   passe en mode modification, et devient « Terminé ».
+4. **Outils** : « ＋ Marqueur » pose un marqueur à l'instant joué.
 5. **Liste des marqueurs** : une ligne de 48 px par marqueur, avec le numéro
-   dans un rond, le temps (avec les centièmes) et le nom. En mode
-   modification, le nom devient un champ éditable et un ✕ supprime le
-   marqueur. Cette liste défile si elle est longue.
+   dans un rond, le temps (avec les centièmes), le nom et un bouton ⋯.
+   Le ⋯ ouvre sous la ligne un panneau : nom modifiable, « −0,1 s »,
+   « Placer à mm:ss » (l'instant joué), « +0,1 s » et « Supprimer ».
+   Révisé après essai sur le téléphone : le ✎ n'était pas trouvé, et on ne
+   pouvait pas déplacer un marqueur. Cette liste défile si elle est longue.
 6. **Commandes**, toujours visibles en bas : début, −5 s, lecture/pause
    (un grand disque en dégradé), +5 s, boucle. Le bouton de boucle n'a que
    son icône, sans numéros (demande de Stéphane). Il est en couleur quand la
@@ -124,6 +125,11 @@ boucle et place la lecture au début de la boucle. Une bande colorée à gauche
 montre les lignes qui sont dans la boucle. La même logique s'applique quand
 on touche une pastille de l'onde. Décision de Claude : cette règle est
 écrite comme une fonction pure dans `track.js` et testée.
+
+**Activer la boucle replace la lecture dedans.** Si la lecture est avant
+ou après la boucle quand on l'active, elle saute au début de la boucle.
+Pendant la lecture, une position avant le début de la boucle y ramène aussi
+(révisé après essai sur le téléphone).
 
 **La boucle jusqu'à la fin du morceau.** Le dernier marqueur n'a pas de
 suivant, donc toucher sa ligne boucle jusqu'à la fin du morceau. La boucle
