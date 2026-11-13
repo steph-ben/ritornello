@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ritornello - comparer le ralenti</title>
+  <style>
+    body { background: #15161a; color: #e8e6e1; font: 16px/1.4 system-ui, sans-serif; margin: 0; }
+    main { max-width: 640px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    button, select, input { background: #22242b; color: inherit; border: 1px solid #383a43; border-radius: 8px; font: inherit; padding: 10px 14px; min-height: 44px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .playing { background: #e0a458; color: #15161a; }
+    #status { color: #9a9890; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Comparer le ralenti</h1>
+  <p>Le même passage, à la même vitesse, joué par deux moteurs. Écoute surtout
+    les notes tenues et le vibrato.</p>
+  <button id="open">Ouvrir un morceau</button>
+  <div class="row">
+    <label>Début (s) <input id="start" type="number" value="0" min="0" step="1" style="width: 6em"></label>
+    <label>Vitesse
+      <select id="speed">
+        <option value="0.9">90 %</option>
+        <option value="0.75" selected>75 %</option>
+        <option value="0.6">60 %</option>
+        <option value="0.5">50 %</option>
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <button id="play-a" disabled>A : SoundTouch (actuel)</button>
+    <button id="play-b" disabled>B : Signalsmith</button>
+    <button id="stop" disabled>Stop</button>
+  </div>
+  <p id="status">Aucun morceau.</p>
+</main>
+
+<script type="module">
+import { PitchShifter } from '../vendor/soundtouch.js';
+import SignalsmithStretch from '../vendor/signalsmith-stretch.mjs';
+
+const $ = id => document.getElementById(id);
+let audioContext = null;
+let audioBuffer = null;
+let soundtouch = null;
+let signalsmith = null;
+
+$('open').addEventListener('click', openTrack);
+$('play-a').addEventListener('click', playSoundTouch);
+$('play-b').addEventListener('click', playSignalsmith);
+$('stop').addEventListener('click', stopAll);
+
+async function openTrack() {
+  audioContext ??= new AudioContext();
+  await audioContext.resume();
+  try {
+    const [handle] = await window.showOpenFilePicker();
+    const file = await handle.getFile();
+    $('status').textContent = 'Décodage…';
+    audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
+    stopAll();
+    signalsmith = null;
+    $('status').textContent = `${file.name} (${Math.round(audioBuffer.duration)} s)`;
+    ['play-a', 'play-b', 'stop'].forEach(id => { $(id).disabled = false; });
+  } catch (error) {
+    $('status').textContent = `Erreur : ${error.name} - ${error.message}`;
+  }
+}
+
+function startTime() { return Math.max(0, Number($('start').value) || 0); }
+function speed() { return Number($('speed').value); }
+
+function playSoundTouch() {
+  stopAll();
+  soundtouch = new PitchShifter(audioContext, audioBuffer, 4096);
+  soundtouch.tempo = speed();
+  soundtouch.percentagePlayed = startTime() / audioBuffer.duration;
+  soundtouch.connect(audioContext.destination);
+  markPlaying('play-a');
+}
+
+async function playSignalsmith() {
+  stopAll();
+  if (!signalsmith) {
+    $('status').textContent = 'Chargement de Signalsmith…';
+    signalsmith = await SignalsmithStretch(audioContext);
+    signalsmith.connect(audioContext.destination);
+    const channels = [];
+    for (let c = 0; c < audioBuffer.numberOfChannels; c++) channels.push(audioBuffer.getChannelData(c));
+    await signalsmith.addBuffers(channels);
+    $('status').textContent = 'Signalsmith prêt.';
+  }
+  // start() repartirait de 0 : on démarre avec schedule, qui garde `input`.
+  signalsmith.schedule({ active: true, input: startTime(), rate: speed(), semitones: 0 });
+  markPlaying('play-b');
+}
+
+function stopAll() {
+  if (soundtouch) { soundtouch.disconnect(); soundtouch = null; }
+  if (signalsmith) signalsmith.stop();
+  markPlaying(null);
+}
+
+function markPlaying(id) {
+  ['play-a', 'play-b'].forEach(b => $(b).classList.toggle('playing', b === id));
+}
+</script>
+</body>
+</html>
