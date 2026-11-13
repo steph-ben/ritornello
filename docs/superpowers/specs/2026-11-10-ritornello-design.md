@@ -102,6 +102,14 @@ Les listes de morceaux :
 - Un accordeur de guitare.
 - Trouver la tonalité d'un morceau, comme le fait CarlTune.
 - Afficher la partition pendant qu'on joue le morceau.
+- Bug signalé le 2026-11-14 : « ajouter un morceau dans une autre liste fait des
+  trucs bizarres », pas reproduit. Écarté : mauvaise liste (`currentListId` est
+  lu au moment de l'ajout), doublon ou déplacement (le morceau est seulement
+  ajouté à la liste affichée, ses réglages sont partagés exprès). Corrigé : la
+  date des listes pouvait reculer (horloge de l'autre appareil en avance) et
+  l'ajout disparaissait. Restent possibles : un ajout ignoré si un autre
+  morceau se charge encore, et un appareil resté ouvert sans synchro qui écrase
+  les listes créées ailleurs. À revoir avec les étapes exactes.
 
 ## Ce qui serait un échec
 
