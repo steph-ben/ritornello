@@ -5,8 +5,10 @@
 //   même version.
 // - À chaque ouverture, la nouvelle version est téléchargée en arrière-plan,
 //   en entier, dans une nouvelle copie. Elle ne remplace l'ancienne que si
-//   tous les fichiers sont arrivés. Une mise à jour se voit donc à
-//   l'ouverture suivante.
+//   tous les fichiers sont arrivés.
+// - Si cette copie diffère de celle qui est servie, on prévient la page
+//   (message « new-version ») : elle affiche un bandeau, et un toucher
+//   recharge pour passer à la nouvelle version. Sans changement, silence.
 // - La musique n'y passe jamais : elle vient des fichiers du téléphone.
 
 const CACHE_PREFIX = 'ritornello-';
@@ -43,6 +45,7 @@ async function fromCopyElseNetwork(request) {
 // Télécharge tous les fichiers dans une nouvelle copie. `addAll` n'écrit
 // rien si un seul fichier échoue : une copie est complète ou vide.
 async function downloadApp() {
+  const served = await latestCopy();
   const name = CACHE_PREFIX + Date.now();
   const copy = await caches.open(name);
   try {
@@ -52,9 +55,33 @@ async function downloadApp() {
     await caches.delete(name); // réseau trop faible : on garde l'ancienne copie
     return;
   }
+  const changed = served && !(await sameFiles(served, copy));
   for (const old of await copyNames()) {
     if (old !== name) await caches.delete(old);
   }
+  if (changed) await tellPagesNewVersion();
+}
+
+// Vrai si tous les fichiers ont exactement le même contenu dans les deux copies.
+async function sameFiles(copyA, copyB) {
+  for (const file of APP_FILES) {
+    const [a, b] = await Promise.all([copyA.match(file), copyB.match(file)]);
+    if (!a || !b) return false;
+    const [bytesA, bytesB] = await Promise.all([a.arrayBuffer(), b.arrayBuffer()]);
+    if (!sameBytes(bytesA, bytesB)) return false;
+  }
+  return true;
+}
+
+function sameBytes(bufferA, bufferB) {
+  if (bufferA.byteLength !== bufferB.byteLength) return false;
+  const a = new Uint8Array(bufferA);
+  const b = new Uint8Array(bufferB);
+  return a.every((byte, i) => byte === b[i]);
+}
+
+async function tellPagesNewVersion() {
+  for (const page of await self.clients.matchAll()) page.postMessage({ type: 'new-version' });
 }
 
 // La copie complète la plus récente, ou null.
