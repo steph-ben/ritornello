@@ -420,6 +420,7 @@ function renderMarkers() {
 function markerItem(marker, bounds) {
   const item = document.createElement('li');
   item.classList.toggle('in-loop', bounds !== null && marker.time >= bounds.start && marker.time <= bounds.end);
+  item.classList.toggle('open', openMarkerId === marker.id);
 
   const number = element('span', 'number', markerNumber(markers, marker.id));
   const time = element('span', 'time', formatTime(marker.time));
