@@ -53,7 +53,10 @@ $('go-lists').addEventListener('click', () => {
   if (history.state?.player) history.back(); // passe par popstate
   else showListsScreen();
 });
-$('message').addEventListener('click', hideMessage);
+$('message').addEventListener('click', () => {
+  if (newVersionWaiting) location.reload(); // sert la nouvelle copie
+  else hideMessage();
+});
 canvas.addEventListener('pointerdown', event => {
   if (duration <= 0) return;
   const markerId = markerAtPoint(canvas, event.offsetX, event.offsetY, markers, duration);
@@ -546,8 +549,20 @@ function showMessage(text) {
 }
 
 function hideMessage() {
-  $('message').hidden = true;
+  if (!newVersionWaiting) $('message').hidden = true; // ce bandeau-là reste jusqu'au rechargement
+}
+
+// Pas de rechargement automatique : l'utilisateur est peut-être en train de jouer.
+let newVersionWaiting = false;
+function showNewVersionMessage() {
+  newVersionWaiting = true;
+  showMessage('Nouvelle version disponible. Touchez pour recharger.');
 }
 
 // Copie hors ligne de l'app (sw.js). Sans service worker, l'app marche quand même.
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'new-version') showNewVersionMessage();
+  });
+}
