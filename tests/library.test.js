@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createLibrary, trackId, findTrackId, addList, renameList, deleteList, selectList,
   currentList, addTrackToList, removeTrackFromList, updateTrack,
   matchesTrack, setLastTrack, lastTrack, mergeLibraries, toSyncFile, fromSyncFile,
-  stampLists } from '../library.js';
+  stampLists, parseYoutubeId, addYoutubeToList } from '../library.js';
 
 const BOURREE = { name: 'Bourrée.mp3', size: 1234 };
 
@@ -210,4 +210,66 @@ test('stampLists dates after the lists received from a clock ahead', () => {
   const withGavotte = stampLists(local, addTrackToList(local, local.currentListId, GAVOTTE, 1000), 1000);
   const merged = mergeLibraries(withGavotte, fromSyncFile(toSyncFile(fromOtherDevice)));
   assert.deepEqual(currentList(merged).trackIds, [trackId(GAVOTTE.name, GAVOTTE.size)]);
+});
+
+// --- YouTube ---
+
+const VIDEO_ID = 'dQw4w9WgXcQ';
+
+test('parseYoutubeId reads the usual YouTube links', () => {
+  const links = [
+    `https://www.youtube.com/watch?v=${VIDEO_ID}`,
+    `https://youtube.com/watch?v=${VIDEO_ID}&t=42s&list=PLabc`,
+    `https://youtu.be/${VIDEO_ID}?si=abcdef`,
+    `https://www.youtube.com/shorts/${VIDEO_ID}`,
+    `https://m.youtube.com/watch?v=${VIDEO_ID}`,
+    `https://music.youtube.com/watch?v=${VIDEO_ID}&si=xyz`,
+    `  ${VIDEO_ID}  `,
+  ];
+  for (const link of links) assert.equal(parseYoutubeId(link), VIDEO_ID, link);
+});
+
+test('parseYoutubeId returns null for anything else', () => {
+  for (const text of ['', 'bonjour', 'https://example.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/', 'trop-court']) {
+    assert.equal(parseYoutubeId(text), null, text);
+  }
+});
+
+test('addYoutubeToList creates a youtube track with default settings', () => {
+  const lib = createLibrary();
+  const after = addYoutubeToList(lib, lib.currentListId, VIDEO_ID, 'Ma vidéo', 1000);
+  const track = after.tracks[`youtube:${VIDEO_ID}`];
+  assert.equal(track.source, 'youtube');
+  assert.equal(track.videoId, VIDEO_ID);
+  assert.equal(track.name, 'Ma vidéo');
+  assert.deepEqual(track.markers, []);
+  assert.equal(track.loop, null);
+  assert.equal(track.speed, 100);
+  assert.equal(track.semitones, 0);
+  assert.equal(track.modifiedAt, 1000);
+  assert.deepEqual(currentList(after).trackIds, [`youtube:${VIDEO_ID}`]);
+});
+
+test('addYoutubeToList uses the video id as name when there is no title', () => {
+  const lib = createLibrary();
+  const after = addYoutubeToList(lib, lib.currentListId, VIDEO_ID, '', 1000);
+  assert.equal(after.tracks[`youtube:${VIDEO_ID}`].name, VIDEO_ID);
+});
+
+test('addYoutubeToList ignores a duplicate in the same list', () => {
+  const lib = createLibrary();
+  const once = addYoutubeToList(lib, lib.currentListId, VIDEO_ID, 'A', 1000);
+  const twice = addYoutubeToList(once, once.currentListId, VIDEO_ID, 'B', 2000);
+  assert.equal(currentList(twice).trackIds.length, 1);
+  assert.equal(twice.tracks[`youtube:${VIDEO_ID}`].name, 'A');
+});
+
+test('mergeLibraries and toSyncFile keep source and videoId', () => {
+  const lib = createLibrary();
+  const withVideo = addYoutubeToList(lib, lib.currentListId, VIDEO_ID, 'A', 1000);
+  const remote = fromSyncFile(toSyncFile(withVideo));
+  const merged = mergeLibraries(createLibrary(), remote);
+  const track = merged.tracks[`youtube:${VIDEO_ID}`];
+  assert.equal(track.source, 'youtube');
+  assert.equal(track.videoId, VIDEO_ID);
 });

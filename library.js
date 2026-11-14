@@ -48,8 +48,20 @@ export function selectList(lib, listId) {
 export function addTrackToList(lib, listId, file, now) {
   const id = findTrackId(lib, file);
   const tracks = lib.tracks[id] ? lib.tracks : { ...lib.tracks, [id]: newTrack(id, file, now) };
-  const withTrack = { ...lib, tracks };
-  return changeList(withTrack, listId, list =>
+  return addIdToList({ ...lib, tracks }, listId, id);
+}
+
+// Ajoute une vidéo YouTube. Son identifiant est « youtube:<id de la vidéo> » ;
+// `title` peut être vide, le nom est alors l'id de la vidéo.
+export function addYoutubeToList(lib, listId, videoId, title, now) {
+  const id = `youtube:${videoId}`;
+  const video = { id, source: 'youtube', videoId, name: title || videoId, ...defaultSettings(now) };
+  const tracks = lib.tracks[id] ? lib.tracks : { ...lib.tracks, [id]: video };
+  return addIdToList({ ...lib, tracks }, listId, id);
+}
+
+function addIdToList(lib, listId, id) {
+  return changeList(lib, listId, list =>
     list.trackIds.includes(id) ? list : { ...list, trackIds: [...list.trackIds, id] });
 }
 
@@ -121,6 +133,30 @@ export function mergeLibraries(local, remote) {
   return { ...local, lists, listsModifiedAt, tracks, currentListId };
 }
 
+// L'identifiant d'une vidéo (11 caractères) dans un lien YouTube copié, ou
+// seul. Renvoie null si le texte n'est pas reconnu.
+const YOUTUBE_HOSTS = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com'];
+const VIDEO_ID_FORMAT = /^[\w-]{11}$/;
+
+export function parseYoutubeId(text) {
+  const clean = text.trim();
+  if (VIDEO_ID_FORMAT.test(clean)) return clean;
+  let url;
+  try {
+    url = new URL(clean);
+  } catch {
+    return null;
+  }
+  const candidate = youtubeCandidate(url);
+  return VIDEO_ID_FORMAT.test(candidate ?? '') ? candidate : null;
+}
+
+function youtubeCandidate(url) {
+  if (url.hostname === 'youtu.be') return url.pathname.slice(1);
+  if (!YOUTUBE_HOSTS.includes(url.hostname)) return null;
+  return url.searchParams.get('v') ?? url.pathname.match(/^\/shorts\/([^/]+)/)?.[1];
+}
+
 // Vrai si le fichier choisi est bien celui du morceau.
 export function matchesTrack(track, file) {
   return sameName(track.name, file.name) && track.size === file.size;
@@ -139,11 +175,11 @@ function newList(name) {
 }
 
 function newTrack(id, file, now) {
-  return {
-    id, name: file.name, size: file.size,
-    markers: [], loop: null, loopActive: false, speed: 100, semitones: 0,
-    modifiedAt: now,
-  };
+  return { id, name: file.name, size: file.size, ...defaultSettings(now) };
+}
+
+function defaultSettings(now) {
+  return { markers: [], loop: null, loopActive: false, speed: 100, semitones: 0, modifiedAt: now };
 }
 
 function changeList(lib, listId, change) {
