@@ -214,6 +214,23 @@ input {
 .rows li.missing .hint { color: var(--error); }
 .rows .remove { color: var(--error); font-size: 18px; }
 
+.rows .tag { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 1px 6px; }
+.rows .tag[hidden] { display: none; }
+
+.add-menu {
+  position: fixed;
+  right: max(18px, calc(50% - 262px));
+  bottom: calc(env(safe-area-inset-bottom) + 92px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 16px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+}
+.add-menu[hidden] { display: none; }
+
 .empty { color: var(--text-dim); padding: 24px 8px; line-height: 1.5; }
 
 .fab {
@@ -291,6 +308,13 @@ input {
   border: 1px solid var(--border);
   touch-action: none;
 }
+
+/* Une vidéo YouTube prend la place de la forme d'onde ; rien ne passe par-dessus. */
+.video { width: 100%; aspect-ratio: 16 / 9; min-height: 200px; margin-top: 8px; flex: none; background: #000; border-radius: 16px; overflow: hidden; }
+.video[hidden] { display: none; }
+.video iframe { width: 100%; height: 100%; display: block; border: 0; }
+.video-mode .timeline { height: 38px; }
+.dial.disabled { opacity: 0.4; pointer-events: none; }
 
 .tools { display: flex; align-items: center; padding: 4px 0; }
 .tool { padding: 0 12px; border-radius: 12px; }

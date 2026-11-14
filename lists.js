@@ -3,7 +3,7 @@
 
 import { createLibrary, currentList, addList, renameList, deleteList, selectList,
   addTrackToList, removeTrackFromList, updateTrack, matchesTrack, findTrackId,
-  setLastTrack, lastTrack, stampLists } from './library.js';
+  setLastTrack, lastTrack, stampLists, parseYoutubeId, addYoutubeToList } from './library.js';
 import { initSync, enableSync, disableSync, libraryChanged, isSyncOn } from './sync.js';
 import * as storage from './storage.js';
 
@@ -17,16 +17,19 @@ let editingTracks = false;       // mode ✎ : retirer des morceaux
 let listMenuOpen = false;        // menu Renommer / Supprimer de la liste active
 const missingTrackIds = new Set(); // morceaux dont le fichier est à retrouver
 let openInPlayer = async () => false;
+let openVideoInPlayer = async () => false;
 let showMessage = () => {};
 let showPlayer = () => {};
 let onLibraryReplaced = () => {};
 
 // onOpen(file, track) charge le morceau dans le lecteur et renvoie true si
-// ça a marché. onMessage(text) affiche un message.
+// ça a marché ; onOpenVideo(track) fait de même pour une vidéo YouTube.
+// onMessage(text) affiche un message.
 // onShowPlayer() revient au lecteur sans recharger le morceau.
 // onTrackReplaced(track) : la synchro a apporté une autre version d'un morceau.
-export async function initLists({ onOpen, onMessage, onShowPlayer, onTrackReplaced }) {
+export async function initLists({ onOpen, onOpenVideo, onMessage, onShowPlayer, onTrackReplaced }) {
   openInPlayer = onOpen;
+  openVideoInPlayer = onOpenVideo;
   showMessage = onMessage;
   showPlayer = onShowPlayer;
   onLibraryReplaced = onTrackReplaced;
@@ -37,7 +40,9 @@ export async function initLists({ onOpen, onMessage, onShowPlayer, onTrackReplac
   $('sync-off').addEventListener('click', disableSync);
   $('rename-list').addEventListener('click', onRenameList);
   $('delete-list').addEventListener('click', onDeleteList);
-  $('add-track').addEventListener('click', onAddTrack);
+  $('add-track').addEventListener('click', toggleAddMenu);
+  $('add-file').addEventListener('click', onAddTrack);
+  $('add-youtube').addEventListener('click', onAddYoutube);
   try {
     library = (await storage.loadLibrary()) ?? library;
   } catch {
@@ -61,7 +66,25 @@ export function saveTrackSettings(id, settings) {
 
 // --- Gestes de l'utilisateur ---
 
+function toggleAddMenu() {
+  $('add-menu').hidden = !$('add-menu').hidden;
+}
+
+// Ajoute une vidéo à la liste. Son titre est lu à la première ouverture.
+function onAddYoutube() {
+  $('add-menu').hidden = true;
+  const text = prompt('Collez le lien YouTube');
+  if (text === null) return;
+  const videoId = parseYoutubeId(text);
+  if (!videoId) {
+    showMessage("Ce lien YouTube n'est pas reconnu.");
+    return;
+  }
+  changeLibrary(addYoutubeToList(library, currentList(library).id, videoId, '', Date.now()));
+}
+
 async function onAddTrack() {
+  $('add-menu').hidden = true;
   const picked = await pickFile();
   if (!picked) return;
   const { handle, file } = picked;
@@ -75,6 +98,7 @@ async function onAddTrack() {
 
 // Toucher un morceau : on rouvre son fichier sans repasser par le sélecteur.
 async function onTrackClick(id) {
+  if (library.tracks[id].source === 'youtube') return onVideoClick(id);
   if (missingTrackIds.has(id)) return onFindTrack(id);
   if (id === openTrackId) return showPlayer(); // déjà chargé
   await loadOnce(id, async () => {
@@ -85,6 +109,14 @@ async function onTrackClick(id) {
       missingTrackIds.add(id);
       showMessage(`Fichier inaccessible (introuvable, ou accès refusé) : ${library.tracks[id].name}. Touchez-le de nouveau pour le retrouver.`);
     }
+  });
+}
+
+// Une vidéo n'a ni fichier ni « à retrouver » : le lecteur la charge par son id.
+async function onVideoClick(id) {
+  if (id === openTrackId) return showPlayer();
+  await loadOnce(id, async () => {
+    if (await openVideoInPlayer(library.tracks[id])) markOpened(id);
   });
 }
 
@@ -174,7 +206,10 @@ async function loadOnce(id, work) {
 
 async function open(id, file) {
   const opened = await openInPlayer(file, library.tracks[id]);
-  if (!opened) return;
+  if (opened) markOpened(id);
+}
+
+function markOpened(id) {
   openTrackId = id;
   missingTrackIds.delete(id);
   changeLibrary(setLastTrack(library, id), { quiet: true });
@@ -337,10 +372,14 @@ function trackItem(track) {
   const name = document.createElement('span');
   name.className = 'name';
   name.textContent = track.name;
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = 'YouTube';
+  tag.hidden = track.source !== 'youtube';
   const hint = document.createElement('span');
   hint.className = 'hint';
   hint.textContent = track.id === loadingTrackId ? 'Chargement…' : missing ? 'à retrouver' : '›';
-  open.append(name, hint);
+  open.append(name, tag, hint);
   open.addEventListener('click', () => onTrackClick(track.id));
   item.append(open);
 

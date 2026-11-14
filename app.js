@@ -1,7 +1,9 @@
-// Le lecteur : relie l'écran à player.js (son), track.js (marqueurs,
-// boucle) et waveform.js (barre de temps). Les listes sont dans lists.js.
+// Le lecteur : relie l'écran à player.js (fichiers audio) ou youtube.js
+// (vidéos), track.js (marqueurs, boucle) et waveform.js (barre de temps).
+// Les listes sont dans lists.js.
 
 import * as player from './player.js';
+import * as youtube from './youtube.js';
 import { addMarker, removeMarker, moveMarker, markerNumber, loopBounds, tapLoop,
   positionAfterTick, stepSpeed, stepSemitones, formatTime,
   MIN_SPEED, MAX_SPEED, MAX_SEMITONES } from './track.js';
@@ -14,6 +16,7 @@ const JUMP_SECONDS = 5;  // recul et avance
 const PEAK_COUNT = 800;  // barres de la forme d'onde
 const DRAG_STEP_PX = 18; // glisser sur un cadran : un pas tous les 18 px
 const DOUBLE_TAP_MS = 300;
+const SPEED_REPLY_MS = 300; // délai de réponse du lecteur YouTube après un changement de vitesse
 
 const $ = id => document.getElementById(id);
 const canvas = $('timeline');
@@ -21,6 +24,7 @@ const playButton = $('play-button');
 const transportButtons = ['go-start', 'go-back', 'go-forward', 'add-marker'].map($);
 
 // État du morceau ouvert
+let engine = player;      // player.js pour un fichier, youtube.js pour une vidéo
 let currentTrackId = null;
 let duration = 0;
 let peaks = null;
@@ -39,8 +43,8 @@ let lastTickTime = 0;
 
 playButton.addEventListener('click', togglePlay);
 $('go-start').addEventListener('click', () => seekTo(0));
-$('go-back').addEventListener('click', () => seekTo(player.getCurrentTime() - JUMP_SECONDS));
-$('go-forward').addEventListener('click', () => seekTo(player.getCurrentTime() + JUMP_SECONDS));
+$('go-back').addEventListener('click', () => seekTo(engine.getCurrentTime() - JUMP_SECONDS));
+$('go-forward').addEventListener('click', () => seekTo(engine.getCurrentTime() + JUMP_SECONDS));
 setupDial($('pitch-dial'), changeSemitones, () => changeSemitones(-semitones));
 setupDial($('speed-dial'), changeSpeed, () => changeSpeed((100 - speed) / 5));
 $('add-marker').addEventListener('click', onAddMarker);
@@ -59,20 +63,22 @@ canvas.addEventListener('pointerdown', event => {
 window.addEventListener('resize', renderTime);
 window.addEventListener('popstate', () => { if (!history.state?.player) showListsScreen(); });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && player.isPlaying()) keepScreenOn();
+  if (document.visibilityState === 'visible' && engine.isPlaying()) keepScreenOn();
 });
-player.onEnded(() => {
+function onEnded() {
   stopPlayback();
-  player.seek(0);
+  engine.seek(0);
   renderTime();
-});
+}
+player.onEnded(onEnded);
+youtube.onEnded(onEnded);
 
 renderSettings();
 renderMarkers();
 renderTime();
 // Après un rechargement, on repart de l'écran Listes.
 if (history.state?.player) history.replaceState(null, '');
-initLists({ onOpen: openFile, onMessage: showMessage, onShowPlayer: showPlayerScreen, onTrackReplaced });
+initLists({ onOpen: openFile, onOpenVideo: openVideo, onMessage: showMessage, onShowPlayer: showPlayerScreen, onTrackReplaced });
 
 // --- Écrans ---
 
@@ -100,6 +106,9 @@ async function openFile(file, track) {
   try {
     const audio = await player.loadAudio(await readFileBytes(file));
     stopPlayback();
+    youtube.pause();
+    engine = player;
+    showVideo(false);
     duration = audio.duration;
     peaks = computePeaks(audio.samples, PEAK_COUNT);
   } catch (error) {
@@ -110,21 +119,62 @@ async function openFile(file, track) {
     return false;
   }
   currentTrackId = track.id;
+  startTrack(track, file.name);
+  announce('ritornello:track-opened', { track, samples: audio.samples, sampleRate: audio.sampleRate });
+  return true;
+}
+
+// Charge la vidéo YouTube du morceau. Renvoie true si ça a marché
+// (appelé par lists.js).
+async function openVideo(track) {
+  if (!navigator.onLine) {
+    showMessage('Pas de réseau : une vidéo YouTube a besoin d\'internet.');
+    return false;
+  }
+  try {
+    stopPlayback();
+    showVideo(true);
+    showPlayerScreen();   // le lecteur YouTube doit être visible pour se charger
+    const video = await youtube.loadVideo(track.videoId, $('video'));
+    engine = youtube;
+    duration = video.duration;
+    peaks = null;
+    if (track.name === track.videoId && video.title) saveTrackSettings(track.id, { name: video.title });
+    startTrack(track, video.title || track.name);
+  } catch (error) {
+    console.error(error);
+    showVideo(engine === youtube);
+    showListsScreen();
+    showMessage(`Impossible de lire la vidéo YouTube. (${error?.message})`);
+    return false;
+  }
+  announce('ritornello:track-opened', { track, samples: null, sampleRate: 0 });
+  return true;
+}
+
+// Reprend les réglages mémorisés du morceau et affiche le lecteur.
+function startTrack(track, name) {
+  currentTrackId = track.id;
   ({ markers, loop, loopActive, speed, semitones } = track);
-  player.setSpeed(speed);
-  player.setSemitones(semitones);
+  engine.setSpeed(speed);
+  engine.setSemitones(semitones);
   applyLoop();
-  $('track-name').textContent = file.name;
+  $('track-name').textContent = name;
   openMarkerId = null;
   lastTappedId = null;
   passCount = 1;
   hideMessage();
   showPlayerScreen();
   renderSettings();
+  setTimeout(renderSettings, SPEED_REPLY_MS);
   renderMarkers();
   renderTime();
-  announce('ritornello:track-opened', { track, samples: audio.samples, sampleRate: audio.sampleRate });
-  return true;
+}
+
+// Une vidéo remplace la forme d'onde ; la barre de temps devient fine.
+function showVideo(visible) {
+  $('video').hidden = !visible;
+  $('player-screen').classList.toggle('video-mode', visible);
 }
 
 // La synchro a apporté une autre version du morceau ouvert (modifié sur un
@@ -132,12 +182,12 @@ async function openFile(file, track) {
 function onTrackReplaced(track) {
   if (track.id !== currentTrackId) return;
   ({ markers, loop, loopActive, speed, semitones } = track);
-  player.setSpeed(speed);
-  player.setSemitones(semitones);
+  engine.setSpeed(speed);
+  engine.setSemitones(semitones);
   applyLoop();
   openMarkerId = null;
   lastTappedId = null;
-  announce('ritornello:semitones', { trackId: track.id, semitones, key: track.key });
+  if (engine === player) announce('ritornello:semitones', { trackId: track.id, semitones, key: track.key });
   renderSettings();
   renderMarkers();
   renderTime();
@@ -151,10 +201,11 @@ function rememberSettings() {
 // --- Lecture ---
 
 function togglePlay() {
-  if (player.isPlaying()) {
+  if (engine.isPlaying()) {
     stopPlayback();
   } else {
-    player.play();
+    engine.play();
+    clearInterval(refreshTimer);   // la vidéo a pu être mise en pause depuis YouTube
     refreshTimer = setInterval(onTick, REFRESH_MS);
     keepScreenOn();
   }
@@ -162,15 +213,15 @@ function togglePlay() {
 }
 
 function stopPlayback() {
-  player.pause();
+  engine.pause();
   clearInterval(refreshTimer);
   refreshTimer = null;
   releaseScreen();
 }
 
 function seekTo(seconds) {
-  player.seek(seconds);
-  lastTickTime = player.getCurrentTime();
+  engine.seek(seconds);
+  lastTickTime = engine.getCurrentTime();
   renderTime();
 }
 
@@ -178,15 +229,15 @@ function seekTo(seconds) {
 // ce test sert quand on déplace la lecture après la fin de la boucle.
 // Un saut en arrière pendant la boucle, c'est un nouveau passage.
 function onTick() {
-  const now = player.getCurrentTime();
+  const now = engine.getCurrentTime();
   if (loopActive) {
     const jump = positionAfterTick(now, currentBounds());
-    if (jump !== null) player.seek(jump);
+    if (jump !== null) engine.seek(jump);
     // Un passage : on a atteint la fin, ou le moteur est revenu au début tout seul.
     const reachedEnd = jump !== null && now >= currentBounds().end;
     if (reachedEnd || (jump === null && now < lastTickTime - 0.3)) countPass();
   }
-  lastTickTime = player.getCurrentTime();
+  lastTickTime = engine.getCurrentTime();
   renderTime();
 }
 
@@ -200,14 +251,16 @@ function countPass() {
 
 function changeSpeed(direction) {
   speed = stepSpeed(speed, direction);
-  player.setSpeed(speed);
+  engine.setSpeed(speed);
   renderSettings();
+  setTimeout(renderSettings, SPEED_REPLY_MS);   // YouTube répond avec un léger retard
   rememberSettings();
 }
 
 function changeSemitones(direction) {
+  if (engine === youtube) return;   // pas de transposition pour une vidéo
   semitones = stepSemitones(semitones, direction);
-  player.setSemitones(semitones);
+  engine.setSemitones(semitones);
   announce('ritornello:semitones', { trackId: currentTrackId, semitones });
   renderSettings();
   rememberSettings();
@@ -216,7 +269,7 @@ function changeSemitones(direction) {
 // --- Marqueurs et boucle ---
 
 function onAddMarker() {
-  markers = addMarker(markers, player.getCurrentTime());
+  markers = addMarker(markers, engine.getCurrentTime());
   updateLoopAfterMarkerChange();
   applyLoop();
   rememberSettings();
@@ -268,7 +321,7 @@ function toggleLoop() {
   lastTappedId = null; // le prochain marqueur touché repart de zéro
   passCount = 1;
   applyLoop();
-  if (loopActive && positionAfterTick(player.getCurrentTime(), currentBounds()) !== null) {
+  if (loopActive && positionAfterTick(engine.getCurrentTime(), currentBounds()) !== null) {
     seekTo(currentBounds().start);
   }
   rememberSettings();
@@ -291,7 +344,7 @@ function currentBounds() {
 
 // Transmet la boucle au moteur audio, qui boucle tout seul.
 function applyLoop() {
-  player.setLoop(loopActive ? currentBounds() : null);
+  engine.setLoop(loopActive ? currentBounds() : null);
 }
 
 // --- Écran allumé pendant la lecture ---
@@ -315,7 +368,7 @@ function releaseScreen() {
 
 // Ce qui bouge pendant la lecture : compteurs, canvas, bouton lecture.
 function renderTime() {
-  const currentTime = player.getCurrentTime();
+  const currentTime = engine.getCurrentTime();
   const bounds = loopActive ? currentBounds() : null;
   $('counter-time').innerHTML = `${formatTime(currentTime)}<small>${hundredths(currentTime)}</small>`;
   $('counter-loop').textContent = bounds ? `${formatTime(bounds.start)} · ${formatTime(bounds.end)}` : '';
@@ -324,7 +377,7 @@ function renderTime() {
   const here = document.querySelector('.marker-panel .here');
   if (here) here.textContent = `Placer à ${formatTime(currentTime)}`;
 
-  renderPlayButton(player.isPlaying());
+  renderPlayButton(engine.isPlaying());
   playButton.disabled = duration === 0;
   transportButtons.forEach(button => { button.disabled = duration === 0; });
 
@@ -342,12 +395,16 @@ function renderPlayButton(playing) {
 }
 
 function renderSettings() {
-  $('pitch-value').textContent = semitones > 0 ? `+${semitones}` : semitones < 0 ? `−${-semitones}` : '0';
-  $('pitch-value').classList.toggle('changed', semitones !== 0);
+  const isVideo = engine === youtube;
+  $('pitch-dial').classList.toggle('disabled', isVideo);
+  $('pitch-value').textContent = isVideo ? '—' : semitones > 0 ? `+${semitones}` : semitones < 0 ? `−${-semitones}` : '0';
+  $('pitch-value').classList.toggle('changed', !isVideo && semitones !== 0);
   drawArc($('pitch-dial'), (semitones + MAX_SEMITONES) / (2 * MAX_SEMITONES));
-  $('speed-value').textContent = `${speed} %`;
-  $('speed-value').classList.toggle('changed', speed !== 100);
-  drawArc($('speed-dial'), (speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED));
+  // Pour une vidéo, on montre la vitesse que le lecteur utilise vraiment.
+  const shownSpeed = isVideo ? youtube.actualSpeed() : speed;
+  $('speed-value').textContent = `${shownSpeed} %`;
+  $('speed-value').classList.toggle('changed', shownSpeed !== 100);
+  drawArc($('speed-dial'), (shownSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED));
 }
 
 // Ce qui change seulement quand on touche aux marqueurs ou à la boucle.
@@ -388,8 +445,8 @@ function markerPanel(marker) {
 
   const earlier = element('button', 'nudge', '−0,1 s');
   earlier.addEventListener('click', () => onMoveMarker(marker.id, marker.time - NUDGE_SECONDS));
-  const here = element('button', 'here', `Placer à ${formatTime(player.getCurrentTime())}`);
-  here.addEventListener('click', () => onMoveMarker(marker.id, player.getCurrentTime()));
+  const here = element('button', 'here', `Placer à ${formatTime(engine.getCurrentTime())}`);
+  here.addEventListener('click', () => onMoveMarker(marker.id, engine.getCurrentTime()));
   const later = element('button', 'nudge', '+0,1 s');
   later.addEventListener('click', () => onMoveMarker(marker.id, marker.time + NUDGE_SECONDS));
 

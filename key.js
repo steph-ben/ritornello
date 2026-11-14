@@ -16,6 +16,10 @@ document.addEventListener('ritornello:track-opened', event => {
   trackId = track.id;
   originalKey = track.key || null;
   semitones = track.semitones || 0;
+  if (!samples) {   // une vidéo YouTube : pas d'accès au son
+    keyLabel.textContent = '';
+    return;
+  }
   render();
   if (!originalKey) analyze(track.id, samples, sampleRate);
 });
